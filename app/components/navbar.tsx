@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, Volume2, VolumeX, X } from "lucide-react";
-import NavbarAura from "./navbar-aura";
 
 const NAV_ITEMS = [
   { label: "Home", href: "#" },
@@ -14,19 +13,29 @@ const NAV_ITEMS = [
 ];
 
 type NavbarProps = {
-  isActive?: boolean;
   isMuted?: boolean;
   isHomeSceneActive?: boolean;
   onToggleMute?: () => void;
 };
 
 export default function Navbar({
-  isActive = true,
   isMuted = false,
   isHomeSceneActive = true,
   onToggleMute,
 }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const handleResize = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleResize);
+    return () => mediaQuery.removeEventListener("change", handleResize);
+  }, []);
 
   const closeMenu = () => {
     setIsMenuOpen(false);
@@ -34,15 +43,15 @@ export default function Navbar({
 
   return (
     <header className="noir-layer-nav">
-      <NavbarAura isActive={isActive} />
       <nav
         className={[
           "noir-navbar",
+          "w-full flex-col md:flex-row",
           isHomeSceneActive ? "noir-navbar--home" : "noir-navbar--solid",
         ].join(" ")}
         aria-label="Primary"
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex w-full md:w-auto items-center justify-between gap-3">
           <a className="noir-navbar-brand" href="#" onClick={closeMenu}>
             IMRAN PASHA
           </a>
@@ -76,8 +85,8 @@ export default function Navbar({
         <ul
           id="noir-navbar-links"
           className={[
-            "noir-navbar-links mt-3 flex-col gap-2 md:mt-0 md:flex md:flex-row",
-            isMenuOpen ? "flex" : "hidden md:flex",
+            "noir-navbar-links mt-3 flex-col gap-2 md:mt-0 md:flex-row",
+            isMenuOpen ? "!flex" : "!hidden md:!inline-flex",
           ].join(" ")}
         >
           {NAV_ITEMS.map((item) => (

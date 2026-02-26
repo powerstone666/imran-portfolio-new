@@ -84,22 +84,43 @@ export default function ExperienceSection() {
     const ctx = gsap.context(() => {
       const title = titleRef.current;
       const mm = gsap.matchMedia();
+      let isGlitchActive = false;
 
       if (title) {
         gsap.fromTo(
           title,
-          { opacity: 0, y: 50, filter: "blur(8px)" },
+          { opacity: 0, y: 50 },
           {
-            opacity: 1, y: 0, filter: "blur(0px)", ease: "none",
+            opacity: 1, y: 0, ease: "none",
             scrollTrigger: { trigger: sectionRef.current, start: "top 80%", end: "top 50%", scrub: 0.6 },
           },
         );
       }
 
+      const setGlitchState = (isActive: boolean) => {
+        if (isGlitchActive === isActive) return;
+        isGlitchActive = isActive;
+
+        if (isActive) {
+          topLayer.classList.add("experience-glitch-bg-lite");
+          card.classList.add("experience-glitch-card-lite");
+          return;
+        }
+
+        topLayer.classList.remove("experience-glitch-bg-lite");
+        card.classList.remove("experience-glitch-card-lite");
+      };
+
       mm.add("(min-width: 768px)", () => {
         const ROTATION_START = 0;
+        const ROTATION_DURATION = 1.45;
+
+        gsap.set([topLayer, baseLayer, card, tagWrapper], {
+          force3D: true,
+          willChange: "transform",
+        });
         gsap.set(topLayer, { rotate: 180, scale: 1.05, transformOrigin: "50% 50%" });
-        gsap.set(baseLayer, { rotate: 180, scale: 1.05, opacity: 0, transformOrigin: "50% 50%" });
+        gsap.set(baseLayer, { rotate: 180, scale: 1.05, opacity: 0.58, transformOrigin: "50% 50%" });
         gsap.set(card, { rotate: 180, transformOrigin: "50% 50%" });
         gsap.set(tagWrapper, { rotate: 180, transformOrigin: "50% 50%" });
 
@@ -107,28 +128,42 @@ export default function ExperienceSection() {
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=165%",
-            scrub: 1,
+            end: "+=190%",
+            scrub: 1.95,
             pin: true,
             anticipatePin: 1,
-            onEnter: () => { baseLayer.style.opacity = ''; baseLayer.classList.add("experience-glitch-layer"); },
-            onLeave: () => { baseLayer.classList.remove("experience-glitch-layer"); baseLayer.style.opacity = '0'; },
-            onEnterBack: () => { baseLayer.style.opacity = ''; baseLayer.classList.add("experience-glitch-layer"); },
-            onLeaveBack: () => { baseLayer.classList.remove("experience-glitch-layer"); baseLayer.style.opacity = '0'; },
+            invalidateOnRefresh: true,
+            onToggle: (self) => setGlitchState(self.isActive),
+            onUpdate: (self) => {
+              const isNearEdge = self.progress <= 0.001 || self.progress >= 0.999;
+              setGlitchState(self.isActive && !isNearEdge);
+            },
+            onLeave: () => setGlitchState(false),
+            onLeaveBack: () => setGlitchState(false),
           },
         });
 
         tl.to({}, { duration: ROTATION_START })
           .set(topLayer, { opacity: 1 }, 0)
-          .to(topLayer, { rotate: 0, scale: 1, ease: "none", duration: 1.2 }, ROTATION_START)
-          .to(card, { rotate: 0, xPercent: -42, ease: "none", duration: 1.2 }, ROTATION_START + 0.1)
-          .to(tagWrapper, { rotate: 0, ease: "none", duration: 1.2 }, ROTATION_START);
+          .to(topLayer, { rotate: 0, scale: 1, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START)
+          .to(card, { rotate: 0, xPercent: -40, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START + 0.08)
+          .to(tagWrapper, { rotate: 0, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START);
+
+        return () => {
+          setGlitchState(false);
+        };
       });
 
       mm.add("(max-width: 767px)", () => {
         const ROTATION_START = 0;
+        const ROTATION_DURATION = 1.35;
+
+        gsap.set([topLayer, baseLayer, card, tagWrapper], {
+          force3D: true,
+          willChange: "transform",
+        });
         gsap.set(topLayer, { rotate: 180, scale: 1.04, transformOrigin: "50% 50%" });
-        gsap.set(baseLayer, { rotate: 180, scale: 1.04, opacity: 0, transformOrigin: "50% 50%" });
+        gsap.set(baseLayer, { rotate: 180, scale: 1.04, opacity: 0.58, transformOrigin: "50% 50%" });
         gsap.set(card, { rotate: 180, transformOrigin: "50% 50%" });
         gsap.set(tagWrapper, { rotate: 180, transformOrigin: "50% 50%" });
 
@@ -136,40 +171,51 @@ export default function ExperienceSection() {
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=140%",
-            scrub: 1,
+            end: "+=170%",
+            scrub: 1.55,
             pin: true,
-            anticipatePin: 1,
-            onEnter: () => { baseLayer.style.opacity = ''; baseLayer.classList.add("experience-glitch-layer"); },
-            onLeave: () => { baseLayer.classList.remove("experience-glitch-layer"); baseLayer.style.opacity = '0'; },
-            onEnterBack: () => { baseLayer.style.opacity = ''; baseLayer.classList.add("experience-glitch-layer"); },
-            onLeaveBack: () => { baseLayer.classList.remove("experience-glitch-layer"); baseLayer.style.opacity = '0'; },
+            anticipatePin: 0.9,
+            invalidateOnRefresh: true,
+            onToggle: (self) => setGlitchState(self.isActive),
+            onUpdate: (self) => {
+              const isNearEdge = self.progress <= 0.001 || self.progress >= 0.999;
+              setGlitchState(self.isActive && !isNearEdge);
+            },
+            onLeave: () => setGlitchState(false),
+            onLeaveBack: () => setGlitchState(false),
           },
         });
 
         tl.to({}, { duration: ROTATION_START })
           .set(topLayer, { opacity: 1 }, 0)
-          .to(topLayer, { rotate: 0, scale: 1, ease: "none", duration: 1.1 }, ROTATION_START)
-          .to(card, { rotate: 0, xPercent: -8, ease: "none", duration: 1.05 }, ROTATION_START + 0.08)
-          .to(tagWrapper, { rotate: 0, ease: "none", duration: 1.1 }, ROTATION_START);
+          .to(topLayer, { rotate: 0, scale: 1, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START)
+          .to(card, { rotate: 0, xPercent: -7, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START + 0.06)
+          .to(tagWrapper, { rotate: 0, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START);
+
+        return () => {
+          setGlitchState(false);
+        };
       });
 
       return () => mm.revert();
     }, panel);
 
-    return () => ctx.revert();
+    return () => {
+      topLayer.classList.remove("experience-glitch-bg-lite");
+      card.classList.remove("experience-glitch-card-lite");
+      ctx.revert();
+    };
   }, []);
 
   return (
     <section ref={sectionRef} id="experience" className="relative z-45 border-t border-white/10 bg-[#050608]">
       <article className="relative min-h-screen overflow-hidden border-b border-white/10">
-          <Image
+        <Image
           src="/experience/experience-engineer-noir-blue.png"
           alt="Engineer noir persona"
           fill
           className="object-cover"
           sizes="100vw"
-          priority
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.12),transparent_38%),linear-gradient(110deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.58)_48%,rgba(0,0,0,0.76)_100%)]" />
 
@@ -260,12 +306,7 @@ export default function ExperienceSection() {
             alt=""
             fill
             className="object-cover"
-            style={{
-              filter: "brightness(0.7) contrast(1.12)",
-              transform: "scale(1.05)",
-            }}
             sizes="100vw"
-            priority
           />
           {/* Full image layer */}
           <Image
@@ -273,11 +314,7 @@ export default function ExperienceSection() {
             alt="Engineer inversion layer"
             fill
             className="object-contain"
-            style={{
-              filter: "brightness(0.95) contrast(1.12)",
-            }}
             sizes="100vw"
-            priority
           />
         </div>
         <div ref={securityTopLayerRef} className="absolute inset-0">
@@ -287,12 +324,7 @@ export default function ExperienceSection() {
             alt=""
             fill
             className="object-cover"
-            style={{
-              filter: "brightness(0.6)",
-              transform: "scale(1.05)",
-            }}
             sizes="100vw"
-            priority
           />
           {/* Full image layer */}
           <Image
@@ -301,15 +333,14 @@ export default function ExperienceSection() {
             fill
             className="object-contain"
             sizes="100vw"
-            priority
           />
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(112deg,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.5)_50%,rgba(0,0,0,0.78)_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-black/50" />
 
-        <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center justify-end px-4 py-16 md:px-8">
+        <div className="relative z-20 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-end px-4 py-16 md:px-8">
           <div
             ref={securityCardRef}
-            className="max-w-3xl space-y-5 rounded-2xl border border-red-300/22 bg-black/44 p-5 backdrop-blur-md md:p-8"
+            className="relative max-w-3xl space-y-5 overflow-hidden rounded-2xl border border-red-300/22 bg-black/60 p-5 md:p-8"
             style={{ transform: "rotate(180deg)" }}
           >
             <div className="flex flex-wrap items-center gap-3">
