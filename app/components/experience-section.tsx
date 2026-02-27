@@ -7,6 +7,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
+gsap.ticker.lagSmoothing(500, 33);
 
 type Badge = {
   label: string;
@@ -102,98 +103,114 @@ export default function ExperienceSection() {
         isGlitchActive = isActive;
 
         if (isActive) {
-          topLayer.classList.add("experience-glitch-bg-lite");
           card.classList.add("experience-glitch-card-lite");
           return;
         }
 
-        topLayer.classList.remove("experience-glitch-bg-lite");
         card.classList.remove("experience-glitch-card-lite");
       };
 
       mm.add("(min-width: 768px)", () => {
-        const ROTATION_START = 0;
         const ROTATION_DURATION = 1.45;
+        const animTargets = [topLayer, card, tagWrapper];
 
-        gsap.set([topLayer, baseLayer, card, tagWrapper], {
+        gsap.set(animTargets, {
           force3D: true,
-          willChange: "transform",
+          backfaceVisibility: "hidden",
         });
-        gsap.set(topLayer, { rotate: 180, scale: 1.05, transformOrigin: "50% 50%" });
-        gsap.set(baseLayer, { rotate: 180, scale: 1.05, opacity: 0.58, transformOrigin: "50% 50%" });
-        gsap.set(card, { rotate: 180, transformOrigin: "50% 50%" });
-        gsap.set(tagWrapper, { rotate: 180, transformOrigin: "50% 50%" });
+        gsap.set(topLayer, { rotation: 180, scale: 1.05, transformOrigin: "50% 50%" });
+        gsap.set(card, { rotation: 180, transformOrigin: "50% 50%" });
+        gsap.set(tagWrapper, { rotation: 180, transformOrigin: "50% 50%" });
+
+        const promoteGPU = (on: boolean) => {
+          const val = on ? "transform" : "auto";
+          animTargets.forEach((el) => { el.style.willChange = val; });
+        };
 
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=190%",
-            scrub: 1.95,
+            end: "+=160%",
+            scrub: 0.4,
             pin: true,
+            pinSpacing: true,
             anticipatePin: 1,
+            fastScrollEnd: true,
             invalidateOnRefresh: true,
-            onToggle: (self) => setGlitchState(self.isActive),
+            onToggle: (self) => {
+              promoteGPU(self.isActive);
+              setGlitchState(self.isActive);
+            },
             onUpdate: (self) => {
               const isNearEdge = self.progress <= 0.001 || self.progress >= 0.999;
               setGlitchState(self.isActive && !isNearEdge);
             },
-            onLeave: () => setGlitchState(false),
-            onLeaveBack: () => setGlitchState(false),
+            onLeave: () => { setGlitchState(false); promoteGPU(false); },
+            onLeaveBack: () => { setGlitchState(false); promoteGPU(false); },
           },
         });
 
-        tl.to({}, { duration: ROTATION_START })
-          .set(topLayer, { opacity: 1 }, 0)
-          .to(topLayer, { rotate: 0, scale: 1, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START)
-          .to(card, { rotate: 0, xPercent: -40, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START + 0.08)
-          .to(tagWrapper, { rotate: 0, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START);
+        tl.set(topLayer, { opacity: 1 }, 0)
+          .to(topLayer, { rotation: 0, scale: 1, ease: "none", duration: ROTATION_DURATION }, 0)
+          .to(card, { rotation: 0, xPercent: -40, ease: "none", duration: ROTATION_DURATION }, 0)
+          .to(tagWrapper, { rotation: 0, ease: "none", duration: ROTATION_DURATION }, 0);
 
         return () => {
           setGlitchState(false);
+          promoteGPU(false);
         };
       });
 
       mm.add("(max-width: 767px)", () => {
-        const ROTATION_START = 0;
         const ROTATION_DURATION = 1.35;
+        const animTargets = [topLayer, card, tagWrapper];
 
-        gsap.set([topLayer, baseLayer, card, tagWrapper], {
+        gsap.set(animTargets, {
           force3D: true,
-          willChange: "transform",
+          backfaceVisibility: "hidden",
         });
-        gsap.set(topLayer, { rotate: 180, scale: 1.04, transformOrigin: "50% 50%" });
-        gsap.set(baseLayer, { rotate: 180, scale: 1.04, opacity: 0.58, transformOrigin: "50% 50%" });
-        gsap.set(card, { rotate: 180, transformOrigin: "50% 50%" });
-        gsap.set(tagWrapper, { rotate: 180, transformOrigin: "50% 50%" });
+        gsap.set(topLayer, { rotation: 180, scale: 1.04, transformOrigin: "50% 50%" });
+        gsap.set(card, { rotation: 180, transformOrigin: "50% 50%" });
+        gsap.set(tagWrapper, { rotation: 180, transformOrigin: "50% 50%" });
+
+        const promoteGPU = (on: boolean) => {
+          const val = on ? "transform" : "auto";
+          animTargets.forEach((el) => { el.style.willChange = val; });
+        };
 
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=170%",
-            scrub: 1.55,
+            end: "+=140%",
+            scrub: 0.3,
             pin: true,
-            anticipatePin: 0.9,
+            pinSpacing: true,
+            anticipatePin: 1,
+            fastScrollEnd: true,
             invalidateOnRefresh: true,
-            onToggle: (self) => setGlitchState(self.isActive),
+            onToggle: (self) => {
+              promoteGPU(self.isActive);
+              setGlitchState(self.isActive);
+            },
             onUpdate: (self) => {
               const isNearEdge = self.progress <= 0.001 || self.progress >= 0.999;
               setGlitchState(self.isActive && !isNearEdge);
             },
-            onLeave: () => setGlitchState(false),
-            onLeaveBack: () => setGlitchState(false),
+            onLeave: () => { setGlitchState(false); promoteGPU(false); },
+            onLeaveBack: () => { setGlitchState(false); promoteGPU(false); },
           },
         });
 
-        tl.to({}, { duration: ROTATION_START })
-          .set(topLayer, { opacity: 1 }, 0)
-          .to(topLayer, { rotate: 0, scale: 1, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START)
-          .to(card, { rotate: 0, xPercent: -7, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START + 0.06)
-          .to(tagWrapper, { rotate: 0, ease: "sine.out", duration: ROTATION_DURATION }, ROTATION_START);
+        tl.set(topLayer, { opacity: 1 }, 0)
+          .to(topLayer, { rotation: 0, scale: 1, ease: "none", duration: ROTATION_DURATION }, 0)
+          .to(card, { rotation: 0, xPercent: -7, ease: "none", duration: ROTATION_DURATION }, 0)
+          .to(tagWrapper, { rotation: 0, ease: "none", duration: ROTATION_DURATION }, 0);
 
         return () => {
           setGlitchState(false);
+          promoteGPU(false);
         };
       });
 
@@ -201,7 +218,6 @@ export default function ExperienceSection() {
     }, panel);
 
     return () => {
-      topLayer.classList.remove("experience-glitch-bg-lite");
       card.classList.remove("experience-glitch-card-lite");
       ctx.revert();
     };
@@ -232,7 +248,7 @@ export default function ExperienceSection() {
             </p>
           </div>
 
-          <div className="max-w-3xl space-y-5 rounded-2xl border border-white/14 bg-black/38 p-5 backdrop-blur-md md:p-8">
+          <div className="max-w-3xl space-y-5 rounded-2xl border border-white/14 bg-black/38 p-5 backdrop-blur-sm md:p-8">
             <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-zinc-200">
                 <Briefcase size={14} />
@@ -298,8 +314,8 @@ export default function ExperienceSection() {
         </div>
       </article>
 
-      <article ref={securityPanelRef} className="relative min-h-screen overflow-hidden">
-        <div ref={securityBaseLayerRef} className="absolute inset-0">
+      <article ref={securityPanelRef} className="relative min-h-screen overflow-hidden" style={{ contain: "layout paint style" }}>
+        <div ref={securityBaseLayerRef} className="absolute inset-0" style={{ transform: "rotate(180deg) scale(1.05)", opacity: 0.58 }}>
           {/* Stretched fill layer */}
           <Image
             src="/experience/experience-engineer-noir-blue.png"
@@ -341,7 +357,6 @@ export default function ExperienceSection() {
           <div
             ref={securityCardRef}
             className="relative max-w-3xl space-y-5 overflow-hidden rounded-2xl border border-red-300/22 bg-black/60 p-5 md:p-8"
-            style={{ transform: "rotate(180deg)" }}
           >
             <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-red-300/30 bg-red-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-red-100">

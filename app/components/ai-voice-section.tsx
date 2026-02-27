@@ -164,19 +164,19 @@ export default function AiVoiceSection() {
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_82%,rgba(255,255,255,0.08),transparent_48%)]" />
 
-      <div className="relative z-[2]">
+      <div className="relative z-2">
         <h3 className="text-3xl font-black uppercase tracking-[0.14em] text-zinc-100 md:text-5xl">
           Imran&apos;s Assistant
         </h3>
       </div>
 
-      <div className="relative z-[2] flex w-full justify-center">
+      <div className="relative z-2 flex w-full justify-center">
         <div className="w-full max-w-3xl overflow-hidden">
           <canvas ref={canvasRef} className="h-44 w-full md:h-52" />
         </div>
       </div>
 
-      <div className="relative z-[2] flex items-center justify-center gap-3">
+      <div className="relative z-2 flex items-center justify-center gap-3">
         <button
           type="button"
           className={[
