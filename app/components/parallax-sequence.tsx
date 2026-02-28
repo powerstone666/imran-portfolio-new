@@ -61,9 +61,10 @@ export function preloadParallaxFrames(): Promise<ParallaxFrameResource[]> {
 
 type ParallaxSequenceProps = {
   isActive?: boolean;
+  isLowEnd?: boolean;
 };
 
-export default function ParallaxSequence({ isActive = true }: ParallaxSequenceProps) {
+export default function ParallaxSequence({ isActive = true, isLowEnd = false }: ParallaxSequenceProps) {
   const framePaths = useMemo(() => PARALLAX_FRAME_PATHS, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const framesRef = useRef<ParallaxFrameResource[]>([]);
@@ -136,7 +137,8 @@ export default function ParallaxSequence({ isActive = true }: ParallaxSequencePr
     drawFrame(currentIndex);
 
     let lastDrawTime = 0;
-    const interval = 1000 / FPS;
+    const currentFps = isLowEnd ? FPS / 2 : FPS;
+    const interval = 1000 / currentFps;
 
     const animate = (now: number) => {
       if (lastDrawTime === 0) {
@@ -157,7 +159,7 @@ export default function ParallaxSequence({ isActive = true }: ParallaxSequencePr
     return () => {
       window.cancelAnimationFrame(frameTimer);
     };
-  }, [areFramesReady, isActive, framePaths.length]);
+  }, [areFramesReady, isActive, isLowEnd, framePaths.length]);
 
   return (
     <div

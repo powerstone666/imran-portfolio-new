@@ -3,7 +3,11 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function ThreeNoirBg() {
+type ThreeNoirBgProps = {
+  isLowEnd?: boolean;
+};
+
+export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +29,7 @@ export default function ThreeNoirBg() {
     camera.lookAt(0, CAMERA_BASE_Y, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 2.0));
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.width = "100%";
@@ -45,8 +49,8 @@ export default function ThreeNoirBg() {
     };
     applyViewportSize();
 
-    // 2. Rain Particles
-    const rainCount = 1500;
+    // 2. Rain Particles (Reduce heavily on low-end devices)
+    const rainCount = isLowEnd ? 150 : 1500;
     const rainGeometry = new THREE.BufferGeometry();
     const rainPositions = new Float32Array(rainCount * 3);
     const rainVelocities: { y: number }[] = [];
@@ -186,7 +190,7 @@ export default function ThreeNoirBg() {
       fogMat.dispose();
       renderer.dispose();
     };
-  }, []);
+  }, [isLowEnd]);
 
   return (
     <div

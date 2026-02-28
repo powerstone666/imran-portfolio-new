@@ -571,6 +571,12 @@ body::after {
   transform: scale(0.96);
 }
 
+.section-auto,
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
+}
+
 /* ── Keyframes ─────────────────────────────────────────────── */
 @keyframes cine-grain-shift {
   0% {

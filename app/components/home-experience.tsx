@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Volume2, VolumeX } from "lucide-react";
-import Image from "next/image"; // Added this line
 import BackgroundAudio from "./background-audio";
 import EnvironmentCursorLayer from "./environment-cursor-layer";
 import LetterboxBars from "./letterbox-bars";
@@ -13,17 +12,18 @@ import Navbar from "./navbar";
 import ParallaxSequence, { preloadParallaxFrames } from "./parallax-sequence";
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 import { preloadImages } from "../lib/asset-preload";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 gsap.registerPlugin(ScrollTrigger);
 
 /* ── Timing ─────────────────────────────────────────────────── */
-const FRAME_DURATION_MS = 3200; // each cinematic beat
-const FADE_TO_BLACK_MS = 800; // darkness between frames
-const TYPEWRITER_CHAR_MS = 38; // per-character reveal speed
+const FRAME_DURATION_MS = 4200; // each cinematic beat
+const FADE_TO_BLACK_MS = 1100; // darkness between frames
+const TYPEWRITER_CHAR_MS = 52; // per-character reveal speed
 const RAIN_VOLUME = 0.3; // rain ambience volume
 const HOME_REVEAL_SCROLL_END = "+=60%";
 const HOME_AUDIO_STOP_LINE_RATIO = 0.85;
-const ENTERING_MIN_VISIBILITY_MS = 500;
+const ENTERING_MIN_VISIBILITY_MS = 850;
 
 /* ── Assets ─────────────────────────────────────────────────── */
 type FrameTransition = "zoom-burst" | "slide-left" | "tilt-rise" | "blur-reveal" | "drift-up" | "slam-in";
@@ -73,6 +73,7 @@ type HomeExperienceProps = {
 };
 
 export default function HomeExperience({ isMuted = false, onToggleMute, onOpenChange }: HomeExperienceProps) {
+  const { isLowEnd } = useDevicePerformance();
   const [phase, setPhase] = useState<"cinematic" | "awaiting" | "transitioning" | "open">("cinematic");
   const [frameIndex, setFrameIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
@@ -353,7 +354,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     tl.fromTo(
       el,
       { opacity: 0, y: 12 },
-      { opacity: 1, y: 0, duration: 0.6, ease: "power2.out", delay: 0.3 },
+      { opacity: 1, y: 0, duration: 0.8, ease: "power2.out", delay: 0.45 },
     );
 
     return () => {
@@ -373,7 +374,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     tl.fromTo(
       children,
       { opacity: 0, y: 24 },
-      { opacity: 1, y: 0, duration: 0.9, stagger: 0.25, ease: "power3.out", delay: 0.4 },
+      { opacity: 1, y: 0, duration: 1.2, stagger: 0.34, ease: "power3.out", delay: 0.55 },
     );
 
     return () => {
@@ -398,38 +399,38 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     // 1. Flash white briefly
     tl.to(loader, {
       backgroundColor: "rgb(255,255,255)",
-      duration: 0.12,
+      duration: 0.18,
       ease: "power4.in",
     });
 
     // 2. Back to black + fade out content
     tl.to(loader, {
       backgroundColor: "#000",
-      duration: 0.3,
+      duration: 0.42,
       ease: "power2.out",
-    }, 0.12);
+    }, 0.18);
 
     tl.to(content, {
       opacity: 0,
       scale: 1.05,
-      duration: 0.6,
+      duration: 0.78,
       ease: "power2.in",
-    }, 0.12);
+    }, 0.18);
 
     // 3. Letterbox bars expand to cover full screen
     tl.to([topBar, bottomBar], {
       height: "52vh",
-      duration: 0.7,
+      duration: 0.95,
       ease: "power3.inOut",
-    }, 0.4);
+    }, 0.55);
 
     // 4. Entire loader slides up and fades
     tl.to(loader, {
       y: "-100%",
       opacity: 0,
-      duration: 0.8,
+      duration: 1.05,
       ease: "power3.inOut",
-    }, 0.9);
+    }, 1.2);
 
     return () => { tl.kill(); };
   }, [phase]);
@@ -614,9 +615,9 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
         {shouldRunMainScene && (
           <>
             <BackgroundAudio shouldPlay={shouldPlayHomeAudio} muted={isMuted} />
-            <ParallaxSequence isActive={shouldRenderHomeLayers} />
-            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} />
-            <LightningLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} />
+            <ParallaxSequence isActive={shouldRenderHomeLayers} isLowEnd={isLowEnd} />
+            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} isLowEnd={isLowEnd} />
+            <LightningLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} isLowEnd={isLowEnd} />
           </>
         )}
 
@@ -636,16 +637,14 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
             {/* ── Frame image ── */}
             {!isIntroFrameReady && <div className="cine-frame cine-frame-placeholder" aria-hidden="true" />}
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               ref={imageRef}
               src={currentFrame.src}
               alt=""
-              fill
-              className="cine-frame object-cover"
+              className="cine-frame object-cover absolute inset-0 w-full h-full"
               style={isIntroFrameReady ? undefined : { opacity: 0 }}
               onLoad={() => setIsIntroFrameReady(true)}
-              unoptimized
-              priority
             />
 
             {/* ── Dystopian film treatment ── */}

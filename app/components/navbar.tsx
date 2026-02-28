@@ -41,8 +41,6 @@ export default function Navbar({
           }
         }
       }
-
-      console.log("Current active section:", currentSection);
       setActiveSection(currentSection);
     };
 

@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 type EnvironmentCursorLayerProps = {
   isActive?: boolean;
+  isLowEnd?: boolean;
 };
 
 function createSoftTexture() {
@@ -25,7 +26,7 @@ function createSoftTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-export default function EnvironmentCursorLayer({ isActive = true }: EnvironmentCursorLayerProps) {
+export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = false }: EnvironmentCursorLayerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function EnvironmentCursorLayer({ isActive = true }: EnvironmentC
     if (!mountNode) return;
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 1.2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -46,7 +47,13 @@ export default function EnvironmentCursorLayer({ isActive = true }: EnvironmentC
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     camera.position.z = 1;
 
-    const particleCount = window.innerWidth < 900 ? 180 : 280;
+    // Reduce particles heavily on low-end devices
+    const getParticleCount = () => {
+      if (isLowEnd) return 40;
+      return window.innerWidth < 900 ? 180 : 280;
+    };
+    
+    const particleCount = getParticleCount();
     const positions = new Float32Array(particleCount * 3);
     const seeds = new Float32Array(particleCount);
 
@@ -165,7 +172,7 @@ export default function EnvironmentCursorLayer({ isActive = true }: EnvironmentC
         mountNode.removeChild(renderer.domElement);
       }
     };
-  }, [isActive]);
+  }, [isActive, isLowEnd]);
 
   return <div ref={mountRef} className="noir-layer-environment" aria-hidden="true" />;
 }

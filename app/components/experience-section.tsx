@@ -116,11 +116,10 @@ export default function ExperienceSection() {
 
         gsap.set(animTargets, {
           force3D: true,
-          backfaceVisibility: "hidden",
         });
-        gsap.set(topLayer, { rotation: 180, scale: 1.05, transformOrigin: "50% 50%" });
-        gsap.set(card, { rotation: 180, transformOrigin: "50% 50%" });
-        gsap.set(tagWrapper, { rotation: 180, transformOrigin: "50% 50%" });
+        gsap.set(topLayer, { rotation: 179.99, scale: 1.05, transformOrigin: "50% 50%" });
+        gsap.set(card, { rotation: 179.99, transformOrigin: "50% 50%" });
+        gsap.set(tagWrapper, { rotation: 179.99, transformOrigin: "50% 50%" });
 
         const promoteGPU = (on: boolean) => {
           const val = on ? "transform" : "auto";
@@ -168,11 +167,10 @@ export default function ExperienceSection() {
 
         gsap.set(animTargets, {
           force3D: true,
-          backfaceVisibility: "hidden",
         });
-        gsap.set(topLayer, { rotation: 180, scale: 1.04, transformOrigin: "50% 50%" });
-        gsap.set(card, { rotation: 180, transformOrigin: "50% 50%" });
-        gsap.set(tagWrapper, { rotation: 180, transformOrigin: "50% 50%" });
+        gsap.set(topLayer, { rotation: 179.99, scale: 1.04, transformOrigin: "50% 50%" });
+        gsap.set(card, { rotation: 179.99, transformOrigin: "50% 50%" });
+        gsap.set(tagWrapper, { rotation: 179.99, transformOrigin: "50% 50%" });
 
         const promoteGPU = (on: boolean) => {
           const val = on ? "transform" : "auto";
@@ -314,8 +312,8 @@ export default function ExperienceSection() {
         </div>
       </article>
 
-      <article ref={securityPanelRef} className="relative min-h-screen overflow-hidden" style={{ contain: "layout paint style" }}>
-        <div ref={securityBaseLayerRef} className="absolute inset-0" style={{ transform: "rotate(180deg) scale(1.05)", opacity: 0.58 }}>
+      <article ref={securityPanelRef} className="relative min-h-screen overflow-hidden">
+        <div ref={securityBaseLayerRef} className="absolute inset-0" style={{ transform: "scale(1.05)", opacity: 0.58 }}>
           {/* Stretched fill layer */}
           <Image
             src="/experience/experience-engineer-noir-blue.png"
