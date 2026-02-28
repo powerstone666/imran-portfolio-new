@@ -10,6 +10,7 @@ import LetterboxBars from "./letterbox-bars";
 import LightningLayer from "./lightning-layer";
 import Navbar from "./navbar";
 import ParallaxSequence from "./parallax-sequence";
+import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -19,6 +20,7 @@ const FADE_TO_BLACK_MS = 800; // darkness between frames
 const TYPEWRITER_CHAR_MS = 38; // per-character reveal speed
 const RAIN_VOLUME = 0.3; // rain ambience volume
 const HOME_REVEAL_SCROLL_END = "+=60%";
+const HOME_AUDIO_STOP_LINE_RATIO = 0.85;
 
 /* ── Assets ─────────────────────────────────────────────────── */
 type FrameTransition = "zoom-burst" | "slide-left" | "tilt-rise" | "blur-reveal" | "drift-up" | "slam-in";
@@ -71,7 +73,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
   const shouldRunMainScene = phase === "open" || phase === "transitioning";
   const shouldPlayHomeAudio = phase === "open" && isHomeLayersActive;
-  const shouldRenderHomeLayers = shouldRunMainScene && isHomeLayersActive;
+  const shouldRenderHomeLayers = shouldRunMainScene;
   const isLoading = phase !== "open";
   const currentFrame = useMemo(
     () => (phase === "cinematic" ? STORY_FRAMES[frameIndex] : WAITING_FRAME),
@@ -129,6 +131,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
     const startRain = () => {
       audio.volume = RAIN_VOLUME;
+      requestAudioFocus(audio);
       audio.play().catch(() => {
         // Browser policy may block until user gesture.
       });
@@ -152,6 +155,12 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   }, [phase, isMuted, stopRain]);
 
   useEffect(() => () => stopRain(true), [stopRain]);
+
+  useEffect(() => {
+    const audio = rainAudioRef.current;
+    if (!audio) return;
+    return subscribeToAudioFocus(audio);
+  }, []);
 
   useEffect(() => {
     onOpenChange?.(phase === "open");
@@ -454,7 +463,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
     const syncHomeLayersFromHomeVisibility = () => {
       const rect = homeSection.getBoundingClientRect();
-      const isHomeVisible = rect.top < window.innerHeight && rect.bottom > 0;
+      const stopLine = window.innerHeight * HOME_AUDIO_STOP_LINE_RATIO;
+      const isHomeVisible = rect.top < window.innerHeight && rect.bottom > stopLine;
       setIsHomeLayersActive(isHomeVisible);
     };
 
@@ -463,7 +473,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     const visibilityTrigger = ScrollTrigger.create({
       trigger: homeSection,
       start: "top bottom",
-      end: "bottom top",
+      end: "bottom 85%",
       onEnter: () => setIsHomeLayersActive(true),
       onEnterBack: () => setIsHomeLayersActive(true),
       onLeave: () => setIsHomeLayersActive(false),

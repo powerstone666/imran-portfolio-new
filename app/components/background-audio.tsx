@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 
 const BACKGROUND_VOLUME = 0.22;
 
@@ -26,6 +27,7 @@ const BackgroundAudio = forwardRef<BackgroundAudioHandle, BackgroundAudioProps>(
         return;
       }
       audio.volume = BACKGROUND_VOLUME;
+      requestAudioFocus(audio);
       await audio.play();
     },
   }));
@@ -56,6 +58,7 @@ const BackgroundAudio = forwardRef<BackgroundAudioHandle, BackgroundAudioProps>(
       }
 
       try {
+        requestAudioFocus(audio);
         await audio.play();
         hasStarted = true;
       } catch {
@@ -80,6 +83,14 @@ const BackgroundAudio = forwardRef<BackgroundAudioHandle, BackgroundAudioProps>(
       window.removeEventListener("keydown", startOnUserGesture);
     };
   }, [shouldPlay, muted]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    return subscribeToAudioFocus(audio);
+  }, []);
 
   return (
     <audio

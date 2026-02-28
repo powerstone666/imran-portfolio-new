@@ -7,6 +7,7 @@ import {
   extractAudioDataUrl,
   readBlobAsDataUrl,
 } from "../lib/assistant-audio";
+import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 
 const AUDIO_SOURCE = "/new-music.mp3";
 const NODE_COUNT = 56;
@@ -92,6 +93,26 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
       }
     }
   }, [isMuted]);
+
+  useEffect(() => {
+    const assistantAudio = assistantAudioRef.current;
+    if (!assistantAudio) {
+      return;
+    }
+
+    return subscribeToAudioFocus(assistantAudio, () => {
+      isSpeakingRef.current = false;
+      setIsAssistantPlaying(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    const previewAudio = previewAudioRef.current;
+    if (!previewAudio) {
+      return;
+    }
+    return subscribeToAudioFocus(previewAudio, () => setIsPlayingPreview(false));
+  }, [audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -279,6 +300,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
     if (isPlayingPreview) {
       previewAudioRef.current.pause();
     } else {
+      requestAudioFocus(previewAudioRef.current);
       previewAudioRef.current.play();
     }
   };
@@ -348,6 +370,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
       }
 
       try {
+        requestAudioFocus(assistantAudio);
         await assistantAudio.play();
         deleteRecording();
       } catch (playbackError) {
@@ -484,6 +507,10 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
         ref={assistantAudioRef}
         muted={isMuted}
         onPlay={() => {
+          const assistantAudio = assistantAudioRef.current;
+          if (assistantAudio) {
+            requestAudioFocus(assistantAudio);
+          }
           isSpeakingRef.current = true;
           setIsAssistantPlaying(true);
         }}
