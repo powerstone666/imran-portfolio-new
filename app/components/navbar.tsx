@@ -56,14 +56,20 @@ export default function Navbar({
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const handleResize = (event: MediaQueryListEvent) => {
+    const handleResize = (event: MediaQueryListEvent | MediaQueryList) => {
       if (event.matches) {
         setIsMenuOpen(false);
       }
     };
 
-    mediaQuery.addEventListener("change", handleResize);
-    return () => mediaQuery.removeEventListener("change", handleResize);
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleResize);
+      return () => mediaQuery.removeEventListener("change", handleResize);
+    }
+
+    // Safari / older WebView fallback.
+    mediaQuery.addListener(handleResize);
+    return () => mediaQuery.removeListener(handleResize);
   }, []);
 
   const closeMenu = () => {
