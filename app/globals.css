@@ -699,6 +699,26 @@ body::after {
   .cine-tagline {
     font-size: clamp(1.2rem, 6vw, 2rem);
   }
+
+  .cine-skip {
+    bottom: 24vh;
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 0.72rem;
+    padding: 0.5rem 1.2rem;
+    width: max-content;
+  }
+
+  .cine-skip:hover {
+    transform: translateX(50%) translateY(-2px);
+  }
+
+  .cine-mute {
+    top: 1.2rem;
+    right: 1.2rem;
+    width: 2rem;
+    height: 2rem;
+  }
 }
 
 .noir-layer-parallax {
