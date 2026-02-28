@@ -255,7 +255,7 @@ export default function AboutNarrationPanel({
         </div>
       </div>
 
-      <div className="min-h-[420px] p-6 md:p-8">
+      <div className="min-h-105 p-6 md:p-8">
         <div ref={lyricsContainerRef} className="space-y-5">
           {visibleLyrics.map((segment, offsetIndex) => {
             const absoluteIndex = visibleStartIndex + offsetIndex;

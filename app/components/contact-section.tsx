@@ -161,7 +161,7 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
         <div ref={textRef}>
           <p className="text-xs uppercase tracking-[0.32em] text-zinc-300/85">Reach Out</p>
           <h2 className="mt-3 text-4xl font-black uppercase tracking-[0.08em] md:text-6xl">
-            <span className="bg-gradient-to-b from-zinc-50 via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+            <span className="bg-linear-to-b from-zinc-50 via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
               Contact
             </span>
           </h2>
@@ -173,7 +173,7 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
           <div className="mt-8 rounded-2xl border border-white/16 bg-black/35 p-4 backdrop-blur-md md:p-5">
             <video
               ref={videoRef}
-              className="h-64 w-full rounded-xl object-cover md:h-[360px]"
+              className="h-64 w-full rounded-xl object-cover md:h-90"
               src="/contact/Noir_Detective_s_AI_Developer_War.mp4"
               muted
               playsInline

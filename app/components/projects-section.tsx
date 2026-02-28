@@ -180,11 +180,11 @@ export default function ProjectsSection() {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_24%,rgba(255,255,255,0.06),transparent_40%),radial-gradient(circle_at_84%_76%,rgba(90,130,180,0.1),transparent_38%)]" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-5 py-16 md:px-8">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-16 md:px-8">
         <div ref={titleRef} className="w-full text-center">
           <p className="text-xs uppercase tracking-[0.32em] text-zinc-300/85">Case Board</p>
           <h2 className="mt-3 text-4xl font-black uppercase tracking-[0.08em] md:text-6xl">
-            <span className="bg-gradient-to-b from-zinc-50 via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+            <span className="bg-linear-to-b from-zinc-50 via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
               Projects
             </span>
           </h2>
@@ -206,7 +206,7 @@ export default function ProjectsSection() {
                     ref={(el) => {
                       cardsRef.current[index] = el;
                     }}
-                    className="w-[330px] shrink-0 snap-start rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-[360px] md:p-6 origin-center will-change-transform"
+                    className="w-82.5 shrink-0 snap-start rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-90 md:p-6 origin-center will-change-transform"
                   >
                     <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-400/90">Case File</p>
                     <h3 className="mt-2 text-2xl font-black uppercase tracking-[0.06em] text-zinc-100 md:text-3xl">
@@ -230,7 +230,7 @@ export default function ProjectsSection() {
 
                   {index < PROJECTS.length - 1 ? (
                     <div className="relative mx-2 mt-28 hidden h-8 w-24 shrink-0 md:block">
-                      <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-[repeating-linear-gradient(to_right,rgba(220,220,220,0.35)_0_10px,transparent_10px_16px)]" />
+                      <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-[repeating-linear-gradient(to_right,rgba(220,220,220,0.35)_0_10px,transparent_10px_16px)]" />
                       <div className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
                       <div className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
                     </div>

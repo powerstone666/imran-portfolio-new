@@ -117,7 +117,7 @@ export default function Navbar({
           id="noir-navbar-links"
           className={[
             "noir-navbar-links mt-3 flex-col gap-2 md:mt-0 md:flex-row",
-            isMenuOpen ? "!flex" : "!hidden md:!inline-flex",
+            isMenuOpen ? "flex!" : "hidden! md:inline-flex!",
           ].join(" ")}
         >
           {NAV_ITEMS.map((item) => (

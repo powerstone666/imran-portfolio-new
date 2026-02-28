@@ -470,7 +470,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
       </div>
 
       <div className="relative z-2 flex w-full justify-center group/canvas mt-4">
-        <div className="relative w-full max-w-5xl overflow-hidden min-h-[16rem] flex flex-col items-center justify-end">
+        <div className="relative w-full max-w-5xl overflow-hidden min-h-64 flex flex-col items-center justify-end">
           {isLoading && (
             <div className="mb-2 flex h-10 w-full items-center justify-center transition-opacity duration-500">
               <span className="text-xl md:text-3xl font-black uppercase tracking-[0.14em] text-zinc-200/90">
@@ -482,7 +482,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
         </div>
       </div>
 
-      <div className="relative z-2 flex flex-col items-center justify-center gap-4 pb-6 mt-2 min-h-[96px]">
+      <div className="relative z-2 flex flex-col items-center justify-center gap-4 pb-6 mt-2 min-h-24">
         {audioUrl && audioBlob ? (
           // Playback / Send Controls (Unified Pill)
           <div className="flex items-center rounded-full border border-white/15 bg-black/60 p-2 backdrop-blur-md shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">

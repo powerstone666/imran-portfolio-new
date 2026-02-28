@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Volume2, VolumeX } from "lucide-react";
+import Image from "next/image"; // Added this line
 import BackgroundAudio from "./background-audio";
 import EnvironmentCursorLayer from "./environment-cursor-layer";
 import LetterboxBars from "./letterbox-bars";
@@ -635,13 +636,16 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
             {/* ── Frame image ── */}
             {!isIntroFrameReady && <div className="cine-frame cine-frame-placeholder" aria-hidden="true" />}
-            <img
+            <Image
               ref={imageRef}
               src={currentFrame.src}
               alt=""
-              className="cine-frame"
+              fill
+              className="cine-frame object-cover"
               style={isIntroFrameReady ? undefined : { opacity: 0 }}
               onLoad={() => setIsIntroFrameReady(true)}
+              unoptimized
+              priority
             />
 
             {/* ── Dystopian film treatment ── */}
@@ -702,18 +706,18 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
         {phase === "open" && (
           <section
             ref={revealSectionRef}
-            className="relative z-[35] min-h-[150vh] px-6 md:px-14"
+            className="relative z-35 min-h-[150vh] px-6 md:px-14"
           >
             <div ref={revealPinRef} className="flex min-h-screen w-full items-center justify-center">
               <div ref={revealContentRef} className="pointer-events-auto max-w-4xl opacity-0 text-center">
                 <h1 className="relative inline-block text-5xl font-black uppercase tracking-[0.14em] md:text-8xl">
                   <span
                     aria-hidden="true"
-                    className="absolute inset-0 -z-10 translate-y-[2px] text-white/28 blur-[1.2px]"
+                    className="absolute inset-0 -z-10 translate-y-0.5 text-white/28 blur-[1.2px]"
                   >
                     Imran Pasha
                   </span>
-                  <span className="bg-gradient-to-b from-zinc-50 via-zinc-200 to-zinc-400 bg-clip-text text-transparent drop-shadow-[0_8px_30px_rgba(0,0,0,0.9)]">
+                  <span className="bg-linear-to-b from-zinc-50 via-zinc-200 to-zinc-400 bg-clip-text text-transparent drop-shadow-[0_8px_30px_rgba(0,0,0,0.9)]">
                     Imran Pasha
                   </span>
                 </h1>
