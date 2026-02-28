@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 const LIGHTNING_MIN_DELAY_MS = 2200;
 const LIGHTNING_MAX_DELAY_MS = 5600;
@@ -29,7 +30,10 @@ export default function LightningLayer({ isActive = true, isLowEnd = false }: Li
       return;
     }
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    if (!renderer) {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);

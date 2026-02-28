@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 type AiAmbientLayerProps = {
   isActive?: boolean;
@@ -20,7 +21,10 @@ export default function AiAmbientLayer({ isActive = true }: AiAmbientLayerProps)
     const width = Math.max(1, bounds.width);
     const height = Math.max(1, bounds.height);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    if (!renderer) {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);

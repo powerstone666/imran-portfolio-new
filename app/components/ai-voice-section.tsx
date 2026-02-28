@@ -23,13 +23,20 @@ type MediaAudioGraph = {
 
 const mediaAudioGraphCache = new WeakMap<HTMLMediaElement, MediaAudioGraph>();
 
-function getOrCreateMediaAudioGraph(audio: HTMLMediaElement): MediaAudioGraph {
+function getOrCreateMediaAudioGraph(audio: HTMLMediaElement): MediaAudioGraph | null {
   const cached = mediaAudioGraphCache.get(audio);
   if (cached && cached.context.state !== "closed") {
     return cached;
   }
 
-  const context = new AudioContext();
+  const AudioContextCtor =
+    window.AudioContext ??
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) {
+    return null;
+  }
+
+  const context = new AudioContextCtor();
   const source = context.createMediaElementSource(audio);
   const graph = { context, source };
   mediaAudioGraphCache.set(audio, graph);
@@ -165,7 +172,11 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
       return;
     }
 
-    const { context: audioContext, source } = getOrCreateMediaAudioGraph(audio);
+    const graph = getOrCreateMediaAudioGraph(audio);
+    if (!graph) {
+      return;
+    }
+    const { context: audioContext, source } = graph;
     audioContextRef.current = audioContext;
 
     const analyser = audioContext.createAnalyser();

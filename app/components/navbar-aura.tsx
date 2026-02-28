@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 const AURA_MIN_DELAY_MS = 500;
 const AURA_MAX_DELAY_MS = 1200;
@@ -43,7 +44,10 @@ export default function NavbarAura({ isActive = true }: NavbarAuraProps) {
       return;
     }
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    if (!renderer) {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);

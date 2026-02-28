@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 type EnvironmentCursorLayerProps = {
   isActive?: boolean;
@@ -37,7 +38,10 @@ export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = fal
     const mountNode = mountRef.current;
     if (!mountNode) return;
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    if (!renderer) {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 1.2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);

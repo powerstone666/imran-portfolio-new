@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 type ThreeNoirBgProps = {
   isLowEnd?: boolean;
@@ -28,7 +29,10 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
     camera.position.y = CAMERA_BASE_Y;
     camera.lookAt(0, CAMERA_BASE_Y, 0);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    if (!renderer) {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 2.0));
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
