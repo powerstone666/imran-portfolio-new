@@ -48,15 +48,16 @@ const PROFILE_LINKS = [
 
 /* ── Component ──────────────────────────────────────────────── */
 type HomeExperienceProps = {
+  isMuted?: boolean;
+  onToggleMute?: () => void;
   onOpenChange?: (isOpen: boolean) => void;
 };
 
-export default function HomeExperience({ onOpenChange }: HomeExperienceProps) {
+export default function HomeExperience({ isMuted = false, onToggleMute, onOpenChange }: HomeExperienceProps) {
   const [phase, setPhase] = useState<"cinematic" | "awaiting" | "transitioning" | "open">("cinematic");
   const [frameIndex, setFrameIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
   const [isFadingToBlack, setIsFadingToBlack] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isHomeLayersActive, setIsHomeLayersActive] = useState(true);
 
   const imageRef = useRef<HTMLImageElement>(null);
@@ -100,15 +101,15 @@ export default function HomeExperience({ onOpenChange }: HomeExperienceProps) {
     });
   }, []);
 
-  const toggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      const next = !prev;
-      if (next) {
-        stopRain(true);
-      }
-      return next;
-    });
-  }, [stopRain]);
+  const handleToggleMute = useCallback(() => {
+    if (onToggleMute) {
+       onToggleMute();
+    }
+    // If turning mute ON, stop rain immediately
+    if (!isMuted) {
+       stopRain(true);
+    }
+  }, [isMuted, onToggleMute, stopRain]);
 
   /* ── Loader rain ambience (rain.mp3) ─────────────────────── */
   useEffect(() => {
@@ -493,10 +494,9 @@ export default function HomeExperience({ onOpenChange }: HomeExperienceProps) {
     <>
       {shouldRunMainScene && (
         <Navbar
-          isActive={shouldRunMainScene}
           isHomeSceneActive={isHomeLayersActive}
           isMuted={isMuted}
-          onToggleMute={toggleMute}
+          onToggleMute={handleToggleMute}
         />
       )}
       <main className={`noir-stage ${shouldRunMainScene ? "noir-main-visible" : "noir-main-hidden"}`}>
@@ -564,7 +564,7 @@ export default function HomeExperience({ onOpenChange }: HomeExperienceProps) {
             <button
               className="cine-mute"
               type="button"
-              onClick={toggleMute}
+              onClick={handleToggleMute}
               aria-label={isMuted ? "Unmute audio" : "Mute audio"}
               aria-pressed={isMuted}
               title={isMuted ? "Unmute" : "Mute"}

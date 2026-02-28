@@ -1,0 +1,55 @@
+Imran Pasha
+Phone: 6361247856 | Email: imranpasha8225@gmail.com | Portfolio: https://imranpasha.netlify.app | GitHub: https://github.com/powerstone666 | LinkedIn: https://linkedin.com/in/imranpasha636
+
+SKILLS
+- Languages: Java, TypeScript, JavaScript, SQL
+- Frameworks: Node.js, Express.js, Fastify, Next.js
+- Databases: PostgreSQL, MySQL, MongoDB
+- Cloud & DevOps: AWS, Azure, Salesforce, GitHub Actions, Docker
+- AI & LLM Systems: RAG Pipelines, MCP Servers, LangChain, Agent Development Kit (ADK), ONNX Runtime
+- Security & Testing: RBAC, Agentic pentest using strix-ai, Playwright, Jest, Manual Testing
+- Tools: Git, GitHub, Google Workspace, Backlog management and user case stories using sheets
+
+EXPERIENCE
+Value AI Labs (Aug. 2025 – Present) | Software Engineer | Bengaluru, KA
+- Led end-to-end development of a Loan Origination System (LOS) for a major US-based private lender, transforming operations from offline to fully digital.
+- Automated the complete loan lifecycle from borrower onboarding to loan approval eliminating manual processes and improving processing efficiency and accelerating loan approvals.
+- Architected the full application flow including RBAC, centralized permission guard, and 7+ role-based workflow orchestration; implemented in-app caching reducing response time from 5s to 100ms, integrated admin panel, and built comprehensive backend and UI automation test suites.
+- Integrated critical third-party services including Authorize.net (Visa) payment gateway, DocuSign embedded eSignature SDK, and automated third-party report handling.
+- Built a smart AI-powered contract viewer for a law firm using Azure OCR for text extraction, regex-based page classification, and Gemini AI for signature detection and specimen-based signature matching.
+
+PROJECTS
+Prompt Doctor
+- Built an MCP server for Agentic AI systems that acts as an intelligent middleware, enhancing user prompts before routing them to agents improving task execution quality and eliminating the need for prompt engineering expertise.
+- Designed a RAG-based architecture using a privacy-focused local embedding model to index repositories with lexical search, making the LLM context-aware of the codebase; integrated Gitleaks to prevent accidental exposure of sensitive data during prompt enhancement.
+
+Env Scanner
+- Built a 24x7 real-time GitHub environment scanner that continuously monitors global commits to detect exposed secrets and API keys.
+- Engineered a highly concurrent scanning system using advanced regex patterns to detect keys across multiple vendors (OpenAI, Gemini, DeepSeek, Qwen, etc.), with real-time validation to eliminate false positives.
+- Implemented AI-based analysis to validate exposed database credentials and cloud configuration strings at scale, handling cases where direct validation was not feasible.
+- Identified 500+ active and working API keys to date, demonstrating large-scale impact in proactive security monitoring.
+
+MelodyMinds-AI Music Player
+- Built an AI-powered music player with ad-free playback, cross-device song liking, and download functionality using ReactJS and Firebase.
+- Integrated real-time mood detection using face-api.js to analyze facial expressions and dynamically recommend songs.
+- Leveraged Gemini API for intelligent music recommendations based on detected mood and user listening patterns.
+- Designed a responsive UI with TailwindCSS and implemented secure authentication and cloud sync via Firebase.
+
+LEADERSHIP & COMMUNITY
+Security Boat Community-Volunteer
+- Conducted cybersecurity workshops and meetups across multiple companies, educating students and working professionals on security best practices and real-world threat scenarios.
+- Led community initiatives including publishing security-focused blogs on Slack, organizing and moderating quizzes, delivering talks, and coordinating end-to-end event operations.
+
+Hackathons
+- Competed in major hackathons (Cardano, Infosys, TCS), developing AI-powered and agentic solutions under strict timelines.
+- Built production-ready prototypes and solved CTF challenges, demonstrating strong applied security knowledge and rapid AI-driven development skills.
+
+System Architecture for AI agents
+- Architected a scalable video streaming platform, designing system components for content delivery, metadata management, recommendation workflows, and video player enhancements.
+- Designed and implemented a full-stack music streaming system, defining APIs, authentication flows, recommendation pipelines, likes/recents tracking, and end-to-end media handling for seamless user experience.
+- Led system design decisions including caching strategies, data modeling, service orchestration, and performance optimization to ensure scalable and responsive applications.
+
+EDUCATION
+HKBK College of engineering (Dec. 2021 – May 2025)
+Bachelor of Engineering in Computer Science | Bengaluru, KA
+- Coursework: Data Structures, Algorithms, Databases, Computer Systems, Web Development

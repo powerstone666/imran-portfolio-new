@@ -1,7 +1,12 @@
 "use client";
 
-import { Mic, Pause, Play } from "lucide-react";
+import { Mic, Square, Play, Pause, Trash2, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+  createObjectUrlFromAudioDataUrl,
+  extractAudioDataUrl,
+  readBlobAsDataUrl,
+} from "../lib/assistant-audio";
 
 const AUDIO_SOURCE = "/new-music.mp3";
 const NODE_COUNT = 56;
@@ -28,14 +33,65 @@ function getOrCreateMediaAudioGraph(audio: HTMLMediaElement): MediaAudioGraph {
   return graph;
 }
 
-export default function AiVoiceSection() {
+type AiVoiceSectionProps = {
+  isMuted?: boolean;
+};
+
+export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const nodeLevelsRef = useRef<number[]>(Array.from({ length: HALF_NODE_COUNT }, () => 8));
-  const [isPlaying, setIsPlaying] = useState(false);
+  // Assistant State
+  const [isLoading, setIsLoading] = useState(false);
+  const isLoadingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const [isAssistantPlaying, setIsAssistantPlaying] = useState(false);
+
+  // Audio Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const assistantAudioRef = useRef<HTMLAudioElement | null>(null);
+  const assistantAudioObjectUrlRef = useRef<string | null>(null);
+
+  // Sync state to ref for requestAnimationFrame loop
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (assistantAudioObjectUrlRef.current) {
+        URL.revokeObjectURL(assistantAudioObjectUrlRef.current);
+        assistantAudioObjectUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const assistantAudio = assistantAudioRef.current;
+    if (assistantAudio) {
+      assistantAudio.muted = isMuted;
+      if (isMuted && !assistantAudio.paused) {
+        assistantAudio.pause();
+      }
+    }
+
+    const previewAudio = previewAudioRef.current;
+    if (previewAudio) {
+      previewAudio.muted = isMuted;
+      if (isMuted && !previewAudio.paused) {
+        previewAudio.pause();
+      }
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -70,6 +126,10 @@ export default function AiVoiceSection() {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     };
 
+    // Initialize layout sizes and subscribe to responsiveness
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
     const drawFrame = () => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
@@ -80,29 +140,68 @@ export default function AiVoiceSection() {
 
       analyser.getByteFrequencyData(frequencyData);
 
+      if (isSpeakingRef.current) {
+        // Speaking state: original active jittery frequency
+        const time = Date.now() / 150;
+        for (let i = 0; i < frequencyData.length; i++) {
+          const noise = Math.sin(time + i * 0.5) * 0.5 + 0.5;
+          frequencyData[i] = noise > 0.4 ? Math.floor(Math.random() * 180) + 40 : 0;
+        }
+      } else if (isLoadingRef.current) {
+        // Thinking state: smooth low-frequency sway
+        const time = Date.now() / 900;
+        for (let i = 0; i < frequencyData.length; i++) {
+          const sway = Math.sin(time + i * 0.28) * 0.5 + 0.5;
+          frequencyData[i] = Math.max(0, sway * 110 + 25);
+        }
+      } else {
+        // Idle state: smooth cinematic drift with medium height (distinct from speaking/thinking)
+        const time = Date.now() / 1350;
+        for (let i = 0; i < frequencyData.length; i++) {
+          const drift =
+            Math.sin(time + i * 0.19) * 0.55 +
+            Math.cos(time * 0.58 + i * 0.1) * 0.45;
+          frequencyData[i] = Math.max(0, drift * 85 + 78);
+        }
+      }
+
       ctx.clearRect(0, 0, width, height);
 
-      const centerX = width / 2;
-      const step = Math.max(4, (width / 2) / Math.max(1, HALF_NODE_COUNT));
-      const nodeWidth = Math.max(2, Math.floor(step * 0.72));
-      const horizontalOffset = (step - nodeWidth) / 2;
-      const midpoint = height / 2;
+      // Add Noir soft white glow effect
+      ctx.shadowColor = "rgba(255, 255, 255, 0.5)"; 
+      ctx.shadowBlur = 12;
+
+      const centerX = Math.floor(width / 2);
+      const step = Math.max(6, (width / 2) / Math.max(1, HALF_NODE_COUNT));
+      const nodeWidth = Math.max(4, Math.floor(step * 0.55)); // Wider gap, chunkier block
+      const horizontalOffset = Math.floor((step - nodeWidth) / 2);
+      
+      // Bottom alignment baseline
+      const baselineY = Math.floor(height * 0.75); // Draw line towards the lower section
       const sampleStride = Math.max(1, Math.floor(frequencyData.length / HALF_NODE_COUNT));
+
+      // Draw the continuous baseline
+      ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.fillRect(0, baselineY, width, 1);
 
       for (let index = 0; index < HALF_NODE_COUNT; index += 1) {
         const sample = frequencyData[index * sampleStride] ?? 0;
         const normalized = sample / 255;
-        const target = 8 + normalized * (height * 0.46);
-        const previous = nodeLevelsRef.current[index] ?? 8;
-        const smoothed = previous + (target - previous) * 0.25;
+        // State-specific amplitude keeps each mode visually distinct
+        const amplitudeScale = isSpeakingRef.current ? 0.5 : isLoadingRef.current ? 0.32 : 0.34;
+        const target = 4 + normalized * (height * amplitudeScale);
+        const previous = nodeLevelsRef.current[index] ?? 4;
+        const smoothingFactor = isLoadingRef.current ? 0.12 : isSpeakingRef.current ? 0.25 : 0.18;
+        const smoothed = previous + (target - previous) * smoothingFactor;
         nodeLevelsRef.current[index] = smoothed;
 
         const barHeight = smoothed;
-        const y = midpoint - barHeight / 2;
-        const xRight = centerX + index * step + horizontalOffset;
-        const xLeft = centerX - (index + 1) * step + horizontalOffset;
+        // Expand strictly upwards from the baseline
+        const y = Math.floor(baselineY - barHeight);
+        const xRight = Math.floor(centerX + index * step + horizontalOffset);
+        const xLeft = Math.floor(centerX - (index + 1) * step + horizontalOffset);
 
-        ctx.fillStyle = "rgba(233, 236, 245, 0.9)";
+        ctx.fillStyle = "rgba(250, 250, 250, 0.95)"; // Pure white
         ctx.fillRect(xRight, y, nodeWidth, barHeight);
         ctx.fillRect(xLeft, y, nodeWidth, barHeight);
       }
@@ -110,48 +209,165 @@ export default function AiVoiceSection() {
       animationFrameRef.current = window.requestAnimationFrame(drawFrame);
     };
 
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    window.addEventListener("resize", resizeCanvas);
-
-    resizeCanvas();
-    animationFrameRef.current = window.requestAnimationFrame(drawFrame);
+    animationFrameRef.current = window.requestAnimationFrame(drawFrame); // Start the animation loop
 
     return () => {
       window.cancelAnimationFrame(animationFrameRef.current);
       window.removeEventListener("resize", resizeCanvas);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
       source.disconnect(analyser);
       analyser.disconnect();
     };
   }, []);
 
-  const togglePlayback = async () => {
-    const audio = audioRef.current;
-    const context = audioContextRef.current;
-    if (!audio || !context) {
+  // -- Audio Recording Logic -- //
+  const startRecording = async () => {
+    if (isAssistantPlaying) {
       return;
     }
 
-    if (context.state === "suspended") {
-      await context.resume();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        setAudioBlob(audioBlob);
+        setAudioUrl(audioUrl);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("Microphone access is required to speak to the Assistant.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      // Stop all audio tracks to release the mic
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const deleteRecording = () => {
+    setAudioBlob(null);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setIsPlayingPreview(false);
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+    }
+  };
+
+  const togglePreviewPlayback = () => {
+    if (!previewAudioRef.current) return;
+    if (isMuted) return;
+    if (isPlayingPreview) {
+      previewAudioRef.current.pause();
+    } else {
+      previewAudioRef.current.play();
+    }
+  };
+
+  // --------------------------- //
+
+
+
+  const handleSendRecording = async () => {
+    if (isLoading || !audioBlob) return;
+
+    setIsLoading(true);
+
+    // Stop preview if playing
+    if (previewAudioRef.current && !previewAudioRef.current.paused) {
+      previewAudioRef.current.pause();
+      setIsPlayingPreview(false);
     }
 
-    if (audio.paused) {
-      await audio.play().catch(() => {});
-      return;
-    }
+    try {
+      const base64Audio = await readBlobAsDataUrl(audioBlob);
 
-    audio.pause();
+      const res = await fetch("/api/genai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audioBase64: base64Audio,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        console.error("Assistant Error:", data?.details || data?.error || "Request failed.");
+        return;
+      }
+
+      const rawAudio = data?.audioObj?.audio ?? data?.audio;
+      const audioDataUrl = extractAudioDataUrl(rawAudio);
+      if (!audioDataUrl) {
+        console.error("Assistant Error: No playable audio payload returned from API.", {
+          payloadKeys: data && typeof data === "object" ? Object.keys(data) : null,
+        });
+        return;
+      }
+
+      const playbackSource = createObjectUrlFromAudioDataUrl(audioDataUrl) ?? audioDataUrl;
+      const assistantAudio = assistantAudioRef.current;
+      if (!assistantAudio) {
+        console.error("Assistant audio element is unavailable.");
+        return;
+      }
+
+      if (assistantAudioObjectUrlRef.current) {
+        URL.revokeObjectURL(assistantAudioObjectUrlRef.current);
+        assistantAudioObjectUrlRef.current = null;
+      }
+      if (playbackSource.startsWith("blob:")) {
+        assistantAudioObjectUrlRef.current = playbackSource;
+      }
+
+      assistantAudio.src = playbackSource;
+      assistantAudio.currentTime = 0;
+
+      if (isMuted) {
+        deleteRecording();
+        return;
+      }
+
+      try {
+        await assistantAudio.play();
+        deleteRecording();
+      } catch (playbackError) {
+        isSpeakingRef.current = false;
+        console.error("Assistant audio playback failed.", {
+          error: playbackError,
+          sourcePrefix: audioDataUrl.slice(0, 32),
+        });
+      }
+    } catch (err) {
+      console.error("Assistant request failed.", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <section
       id="ai"
-      className="relative flex min-h-screen flex-col justify-between overflow-hidden border-t border-white/10 px-6 py-14 md:py-16"
+      className="relative flex min-h-screen flex-col justify-start gap-3 overflow-hidden border-t border-white/10 px-6 py-14 md:gap-5 md:py-16"
     >
       <div
         className="pointer-events-none absolute inset-0"
@@ -164,44 +380,124 @@ export default function AiVoiceSection() {
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_82%,rgba(255,255,255,0.08),transparent_48%)]" />
 
-      <div className="relative z-2">
-        <h3 className="text-3xl font-black uppercase tracking-[0.14em] text-zinc-100 md:text-5xl">
-          Imran&apos;s Assistant
+      <div className="relative z-2 flex flex-col items-center">
+        <h3 className="text-3xl font-black uppercase tracking-[0.14em] text-zinc-100 md:text-5xl text-center">
+          Meet Cherry
         </h3>
       </div>
 
-      <div className="relative z-2 flex w-full justify-center">
-        <div className="w-full max-w-3xl overflow-hidden">
-          <canvas ref={canvasRef} className="h-44 w-full md:h-52" />
+      <div className="relative z-2 flex w-full justify-center group/canvas mt-4">
+        <div className="relative w-full max-w-5xl overflow-hidden min-h-[16rem] flex flex-col items-center justify-end">
+          {isLoading && (
+            <div className="mb-2 flex h-10 w-full items-center justify-center transition-opacity duration-500">
+              <span className="text-xl md:text-3xl font-black uppercase tracking-[0.14em] text-zinc-200/90">
+                Thinking...
+              </span>
+            </div>
+          )}
+          <canvas ref={canvasRef} className="h-64 w-full md:h-72 opacity-90" />
         </div>
       </div>
 
-      <div className="relative z-2 flex items-center justify-center gap-3">
-        <button
-          type="button"
-          className={[
-            "inline-flex h-14 w-14 items-center justify-center rounded-full border transition",
-            "border-zinc-100/35 bg-black/45 text-zinc-100 hover:border-zinc-100/65 hover:bg-zinc-700/28",
-          ].join(" ")}
-          aria-label="Microphone input"
-        >
-          <Mic size={21} />
-        </button>
-        <button
-          type="button"
-          className={[
-            "inline-flex h-14 w-14 items-center justify-center rounded-full border transition",
-            isPlaying
-              ? "border-zinc-100/70 bg-zinc-200/20 text-zinc-50 shadow-[0_0_28px_rgba(255,255,255,0.35)]"
-              : "border-zinc-100/35 bg-black/45 text-zinc-100 hover:border-zinc-100/65 hover:bg-zinc-700/28",
-          ].join(" ")}
-          onClick={togglePlayback}
-          aria-label={isPlaying ? "Pause assistant preview audio" : "Start assistant preview audio"}
-        >
-          {isPlaying ? <Pause size={21} /> : <Play size={21} />}
-        </button>
+      <div className="relative z-2 flex flex-col items-center justify-center gap-4 pb-6 mt-2 min-h-[96px]">
+        {audioUrl && audioBlob ? (
+          // Playback / Send Controls (Unified Pill)
+          <div className="flex items-center rounded-full border border-white/15 bg-black/60 p-2 backdrop-blur-md shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <button 
+              onClick={togglePreviewPlayback}
+              disabled={isLoading}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50 shrink-0"
+            >
+              {isPlayingPreview ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
+            </button>
+            
+            <div className="mx-4 flex h-1 w-24 overflow-hidden rounded-full bg-zinc-800 shrink-0">
+              <div className="h-full w-full bg-zinc-400 rounded-full" />
+            </div>
+            
+            <div className="flex items-center gap-1 border-l border-white/10 pl-3">
+              <button 
+                onClick={deleteRecording}
+                disabled={isLoading}
+                className="flex h-12 w-12 items-center justify-center rounded-full text-zinc-400 transition hover:bg-black/40 hover:text-white disabled:opacity-50"
+                aria-label="Delete recording"
+              >
+                <Trash2 size={18} />
+              </button>
+              
+              <button
+                onClick={handleSendRecording}
+                disabled={isLoading}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-black transition-all hover:bg-white hover:scale-105 hover:shadow-[0_0_24px_rgba(255,255,255,0.3)] disabled:opacity-50 disabled:hover:scale-100"
+                aria-label="Send to AI"
+              >
+                <Send size={18} className="-ml-0.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Recording Control
+          <>
+            <button
+              type="button"
+              disabled={isLoading || isAssistantPlaying}
+              onClick={isRecording ? stopRecording : startRecording}
+              className={[
+                "inline-flex h-20 w-20 items-center justify-center rounded-full border transition-all duration-300 relative group",
+                isRecording 
+                  ? "border-zinc-300 bg-zinc-100 text-black shadow-[0_0_30px_rgba(255,255,255,0.4)] scale-110"
+                  : isLoading || isAssistantPlaying
+                    ? "border-zinc-500 bg-zinc-800/40 text-zinc-300 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                    : "border-zinc-100/35 bg-black/45 text-zinc-100 hover:border-zinc-300 hover:bg-zinc-800/40 hover:text-white hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+              ].join(" ")}
+              aria-label={isRecording ? "Stop recording" : "Click to speak"}
+              title="Speak to Assistant"
+            >
+              {/* Pulse ring for recording state */}
+              {isRecording && (
+                <div className="absolute inset-0 rounded-full border border-zinc-100 animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]" />
+              )}
+              
+              {isRecording ? <Square size={26} className="fill-current" /> : <Mic size={30} />}
+            </button>
+            
+            <span className={`text-xs font-medium uppercase tracking-widest transition-colors ${isRecording ? 'text-zinc-100 animate-pulse' : 'text-zinc-500'}`}>
+              {isAssistantPlaying ? "Assistant Speaking..." : isLoading ? 'Processing' : isRecording ? 'Recording...' : 'Tap to Record'}
+            </span>
+          </>
+        )}
       </div>
 
+      {audioUrl && (
+        <audio 
+          ref={previewAudioRef} 
+          src={audioUrl} 
+          muted={isMuted}
+          onPlay={() => setIsPlayingPreview(true)}
+          onPause={() => setIsPlayingPreview(false)}
+          onEnded={() => setIsPlayingPreview(false)}
+          className="hidden" 
+        />
+      )}
+
+      <audio
+        ref={assistantAudioRef}
+        muted={isMuted}
+        onPlay={() => {
+          isSpeakingRef.current = true;
+          setIsAssistantPlaying(true);
+        }}
+        onPause={() => {
+          isSpeakingRef.current = false;
+          setIsAssistantPlaying(false);
+        }}
+        onEnded={() => {
+          isSpeakingRef.current = false;
+          setIsAssistantPlaying(false);
+        }}
+        className="hidden"
+      />
+      
       <audio ref={audioRef} src={AUDIO_SOURCE} loop preload="auto" />
     </section>
   );

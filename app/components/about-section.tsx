@@ -6,7 +6,11 @@ import AiVoiceSection from "./ai-voice-section";
 const ABOUT_GALLERY_IMAGES = Array.from({ length: 15 }, (_, index) => `/myPhotos/about-gallery-${String(index + 1).padStart(2, "0")}.jpeg`);
 const ABOUT_IMAGE_SWAP_MS = 2800;
 
-export default function AboutSection() {
+type AboutSectionProps = {
+  isMuted?: boolean;
+};
+
+export default function AboutSection({ isMuted = false }: AboutSectionProps) {
   const [imageIndex, setImageIndex] = useState(0);
 
   useEffect(() => {
@@ -53,28 +57,37 @@ export default function AboutSection() {
         </div>
 
         <div className="relative flex items-center p-5 md:p-8">
-          <div className="max-w-md md:max-w-lg">
-            <p className="text-xs uppercase tracking-[0.3em] text-zinc-300/90">About</p>
-            <h2 className="mt-3 text-4xl font-black uppercase tracking-[0.1em] md:text-6xl">
-              <span className="bg-gradient-to-b from-zinc-50 via-zinc-200 to-zinc-400 bg-clip-text text-transparent drop-shadow-[0_8px_30px_rgba(0,0,0,0.85)]">
-                Imran Pasha
-              </span>
-            </h2>
-            <p className="mt-4 text-sm uppercase tracking-[0.24em] text-zinc-300/90 md:text-base">
-              Systems Engineer in the AI Era
-            </p>
-            <p className="mt-6 max-w-xl text-2xl italic leading-relaxed text-zinc-100/95 [font-family:'Times_New_Roman',serif] md:text-3xl">
-              Calm under pressure. Precise under uncertainty.
-            </p>
-            <p className="mt-4 max-w-xl leading-relaxed text-zinc-200/90">
-              I build software systems with a noir mindset. I focus on adaptability, strong fundamentals,
-              and production-ready engineering that stays valuable as AI transforms the stack.
-            </p>
+          <div className="max-w-md md:max-w-xl">
+            <div className="space-y-4 text-base leading-relaxed text-zinc-200/90 md:text-lg">
+              <p>
+                The world is moving fast.<br />
+                Systems are replacing processes.<br />
+                Intelligence is becoming automated.
+              </p>
+              <p className="font-semibold text-zinc-100">
+                I chose not to compete with machines —<br />
+                I chose to build alongside them.
+              </p>
+              <p>
+                I design systems that listen, validate, and act.<br />
+                From high-concurrency security scanners<br />
+                to AI-powered contract intelligence platforms.
+              </p>
+              <p>
+                I work where signals are noisy,<br />
+                where performance matters,<br />
+                and where automation replaces friction.
+              </p>
+              <p className="italic text-zinc-300">
+                I am not just writing code.<br />
+                I am engineering in the age of AI.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <AiVoiceSection />
+      <AiVoiceSection isMuted={isMuted} />
     </section>
   );
 }
