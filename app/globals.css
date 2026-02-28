@@ -984,6 +984,15 @@ body::after {
   color: rgb(255 255 255 / 98%);
 }
 
+.noir-navbar-link.active {
+  border-color: rgb(210 220 255 / 65%);
+  background: rgb(210 220 255 / 18%);
+  color: rgb(255 255 255 / 100%);
+  box-shadow:
+    0 0 16px rgb(190 205 255 / 24%),
+    inset 0 1px 0 0 rgb(255 255 255 / 24%);
+}
+
 .noir-navbar-mute {
   display: inline-flex;
   align-items: center;

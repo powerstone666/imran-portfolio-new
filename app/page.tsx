@@ -17,7 +17,7 @@ const ABOUT_NARRATION_SEGMENTS: NarrationSegment[] = [
   { start: 8.3, end: 10.74, text: "I choose not to compete with machines." },
   { start: 10.74, end: 13.02, text: "I choose to build alongside them." },
   { start: 13.02, end: 16.78, text: "I design systems that listen, validate and act." },
-  { start: 16.78, end: 20.98, text: "From high concurrency security channels to Loan Originating Systems." },
+  { start: 16.78, end: 20.98, text: "From high concurrency security scanners to Loan Originating Systems." },
   { start: 20.98, end: 27.78, text: "I work where signals are noisy, where performance matters, and where automation replaces friction." },
   { start: 27.78, end: 29.82, text: "I am not just writing code." },
   { start: 29.82, end: 32.14, text: "I am engineering in the age of AI." },

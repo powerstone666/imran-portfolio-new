@@ -129,6 +129,7 @@ export default function Navbar({
               <a
                 className={`noir-navbar-link ${activeSection === item.href ? "active" : ""}`}
                 href={item.href}
+                aria-current={activeSection === item.href ? "page" : undefined}
                 onClick={closeMenu}
               >
                 {item.label}

@@ -10,7 +10,7 @@ import {
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 
 const AUDIO_SOURCE = " ";
-const CHERRY_MUSIC_VOLUME = 0.32;
+const CHERRY_MUSIC_VOLUME = 0.12;
 const ASSISTANT_VOICE_VOLUME = 1.0;
 const NODE_COUNT = 56;
 const HALF_NODE_COUNT = Math.floor(NODE_COUNT / 2);
