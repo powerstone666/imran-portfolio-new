@@ -183,7 +183,12 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
         </div>
 
         <div ref={formRef} className="rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:p-8">
-          <form className="space-y-4" action="#" method="post">
+          <form
+            className="space-y-4"
+            action="https://formspree.io/f/mgegrqwy"
+            method="post"
+            target="_blank"
+          >
             <div>
               <label htmlFor="contact-name" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
                 Name

@@ -9,8 +9,9 @@ import EnvironmentCursorLayer from "./environment-cursor-layer";
 import LetterboxBars from "./letterbox-bars";
 import LightningLayer from "./lightning-layer";
 import Navbar from "./navbar";
-import ParallaxSequence from "./parallax-sequence";
+import ParallaxSequence, { preloadParallaxFrames } from "./parallax-sequence";
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
+import { preloadImages } from "../lib/asset-preload";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -21,17 +22,32 @@ const TYPEWRITER_CHAR_MS = 38; // per-character reveal speed
 const RAIN_VOLUME = 0.3; // rain ambience volume
 const HOME_REVEAL_SCROLL_END = "+=60%";
 const HOME_AUDIO_STOP_LINE_RATIO = 0.85;
+const ENTERING_MIN_VISIBILITY_MS = 500;
 
 /* ── Assets ─────────────────────────────────────────────────── */
 type FrameTransition = "zoom-burst" | "slide-left" | "tilt-rise" | "blur-reveal" | "drift-up" | "slam-in";
 
 const STORY_FRAMES: { src: string; kenBurns: { x: string; y: string; scale: number }; transition: FrameTransition }[] = [
-  { src: "/loading/noir_loader_1.png", kenBurns: { x: "-2%", y: "-1%", scale: 1.08 }, transition: "zoom-burst" },
-  { src: "/loading/noir_loader_3.png", kenBurns: { x: "2%", y: "0%", scale: 1.07 }, transition: "blur-reveal" },
-  { src: "/loading/noir_loader_5.png", kenBurns: { x: "-1.5%", y: "0.5%", scale: 1.06 }, transition: "drift-up" },
-  { src: "/loading/noir_loader_4.png", kenBurns: { x: "0%", y: "-1.5%", scale: 1.05 }, transition: "slam-in" },
+  { src: "/loading/noir_loader_1.png", kenBurns: { x: "-1.1%", y: "-0.5%", scale: 1.02 }, transition: "zoom-burst" },
+  { src: "/loading/noir_loader_3.png", kenBurns: { x: "1%", y: "0%", scale: 1.015 }, transition: "blur-reveal" },
+  { src: "/loading/noir_loader_5.png", kenBurns: { x: "-0.8%", y: "0.3%", scale: 1.012 }, transition: "drift-up" },
+  { src: "/loading/noir_loader_4.png", kenBurns: { x: "0%", y: "-0.7%", scale: 1.01 }, transition: "slam-in" },
 ];
-const WAITING_FRAME = { src: "/loading/noir_story_4.png", kenBurns: { x: "0.5%", y: "-1%", scale: 1.04 }, transition: "drift-up" as FrameTransition };
+const WAITING_FRAME = { src: "/loading/noir_story_4.png", kenBurns: { x: "0.3%", y: "-0.5%", scale: 1.008 }, transition: "drift-up" as FrameTransition };
+
+const ABOUT_GALLERY_PRELOAD_IMAGES = Array.from({ length: 13 }, (_, index) => {
+  const frameNumber = String(index + 1).padStart(2, "0");
+  return `/myPhotos/about-gallery-${frameNumber}.jpeg`;
+});
+
+const HOME_PRELOAD_IMAGES = [
+  "/parallax/noir_ny_start.png",
+  "/parallax/noir_ny_end.png",
+  "/myPhotos/about-main.jpeg",
+  ...ABOUT_GALLERY_PRELOAD_IMAGES,
+];
+
+const HOME_PRELOAD_AUDIO = ["/stan.mp3", "/rain.mp3"];
 
 const DIALOGUES = [
   "We trained the machines. They took the shifts.",
@@ -41,11 +57,11 @@ const DIALOGUES = [
 ];
 
 const PROFILE_LINKS = [
-  { label: "LinkedIn", href: "https://www.linkedin.com" },
-  { label: "GitHub", href: "https://github.com" },
-  { label: "Mail", href: "mailto:imran@example.com" },
-  { label: "GFG", href: "https://www.geeksforgeeks.org/user/" },
-  { label: "Download Resume", href: "/resume.pdf" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/imranpasha636" },
+  { label: "GitHub", href: "https://github.com/powerstone666" },
+  { label: "Mail", href: "mailto:imranpasha8225@gmail.com" },
+  { label: "GFG", href: "https://www.geeksforgeeks.org/user/powerstone666" },
+  { label: "Download Resume", href: "https://drive.google.com/file/d/1lxPkkPH1MCbn1pr09DnpwpqPAzKnkHl9/view?usp=drive_link" },
 ];
 
 /* ── Component ──────────────────────────────────────────────── */
@@ -61,6 +77,9 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   const [typedText, setTypedText] = useState("");
   const [isFadingToBlack, setIsFadingToBlack] = useState(false);
   const [isHomeLayersActive, setIsHomeLayersActive] = useState(true);
+  const [isEntering, setIsEntering] = useState(false);
+  const [areSecondaryLayersReady, setAreSecondaryLayersReady] = useState(false);
+  const [isIntroFrameReady, setIsIntroFrameReady] = useState(false);
 
   const imageRef = useRef<HTMLImageElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
@@ -70,6 +89,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   const revealSectionRef = useRef<HTMLElement>(null);
   const revealPinRef = useRef<HTMLDivElement>(null);
   const revealContentRef = useRef<HTMLDivElement>(null);
+  const preloadPromiseRef = useRef<Promise<void> | null>(null);
 
   const shouldRunMainScene = phase === "open" || phase === "transitioning";
   const shouldPlayHomeAudio = phase === "open" && isHomeLayersActive;
@@ -166,9 +186,28 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     onOpenChange?.(phase === "open");
   }, [phase, onOpenChange]);
 
+  useEffect(() => {
+    void preloadImages([STORY_FRAMES[0].src, ...STORY_FRAMES.map((frame) => frame.src), WAITING_FRAME.src])
+      .then(() => setIsIntroFrameReady(true))
+      .catch(() => setIsIntroFrameReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "open") {
+      setAreSecondaryLayersReady(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setAreSecondaryLayersReady(true);
+    }, 650);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [phase]);
+
   /* ── Typewriter effect ─────────────────────────────────────── */
   useEffect(() => {
-    if (phase !== "cinematic") return;
+    if (phase !== "cinematic" || !isIntroFrameReady) return;
     setTypedText("");
     const text = currentDialogue;
     let charIndex = 0;
@@ -178,11 +217,11 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       if (charIndex >= text.length) clearInterval(interval);
     }, TYPEWRITER_CHAR_MS);
     return () => clearInterval(interval);
-  }, [frameIndex, phase, currentDialogue]);
+  }, [frameIndex, phase, currentDialogue, isIntroFrameReady]);
 
   /* ── Cinematic sequence driver ─────────────────────────────── */
   useEffect(() => {
-    if (phase !== "cinematic") return;
+    if (phase !== "cinematic" || !isIntroFrameReady) return;
 
     const timers: number[] = [];
 
@@ -214,7 +253,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     timers.push(awaitTimer);
 
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [phase]);
+  }, [phase, isIntroFrameReady]);
 
   /* ── Unique transition per frame + Ken Burns ───────────────── */
   useLayoutEffect(() => {
@@ -242,7 +281,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "zoom-burst":
         // Starts zoomed way in, punches outward
         Object.assign(from, {
-          opacity: 0, scale: 1.35, x: "0%", y: "0%", rotation: 0,
+          opacity: 0, scale: 1.12, x: "0%", y: "0%", rotation: 0,
           filter: "contrast(1.5) saturate(0) brightness(0.1)",
         });
         to.ease = "power3.out";
@@ -251,7 +290,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "slide-left":
         // Slides in from the right like a film strip
         Object.assign(from, {
-          opacity: 0, scale: 1.02, x: "12%", y: "0%", rotation: 0,
+          opacity: 0, scale: 1.01, x: "7%", y: "0%", rotation: 0,
           filter: "contrast(1.2) saturate(0) brightness(0.25)",
         });
         to.ease = "power2.inOut";
@@ -260,7 +299,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "tilt-rise":
         // Tilts up from below with slight rotation
         Object.assign(from, {
-          opacity: 0, scale: 1.04, x: "0%", y: "8%", rotation: 1.5,
+          opacity: 0, scale: 1.02, x: "0%", y: "4%", rotation: 0.8,
           filter: "contrast(1.3) saturate(0) brightness(0.2)",
         });
         to.ease = "power2.out";
@@ -269,8 +308,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "blur-reveal":
         // Starts heavily blurred, sharpens into focus
         Object.assign(from, {
-          opacity: 0, scale: 1.08, x: "0%", y: "0%", rotation: 0,
-          filter: "contrast(0.8) saturate(0) brightness(0.15) blur(18px)",
+          opacity: 0, scale: 1.03, x: "0%", y: "0%", rotation: 0,
+          filter: "contrast(0.85) saturate(0) brightness(0.15) blur(10px)",
         });
         to.filter = "contrast(1.1) saturate(0.7) brightness(0.72) blur(0px)";
         to.ease = "power1.out";
@@ -279,7 +318,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "drift-up":
         // Floats up gently from darkness
         Object.assign(from, {
-          opacity: 0, scale: 0.96, x: "-1%", y: "5%", rotation: -0.5,
+          opacity: 0, scale: 0.985, x: "-0.6%", y: "2.2%", rotation: -0.2,
           filter: "contrast(1.4) saturate(0) brightness(0.08)",
         });
         to.ease = "sine.inOut";
@@ -288,7 +327,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       case "slam-in":
         // Slams in fast from scaled up, hard landing
         Object.assign(from, {
-          opacity: 0, scale: 1.2, x: "-6%", y: "-3%", rotation: -1,
+          opacity: 0, scale: 1.08, x: "-3.2%", y: "-1.8%", rotation: -0.45,
           filter: "contrast(1.6) saturate(0) brightness(0.05)",
         });
         to.ease = "back.out(1.2)";
@@ -488,6 +527,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   }, [phase]);
 
   const handleSkip = useCallback(() => {
+    setIsEntering(false);
     setIsFadingToBlack(true);
     setTimeout(() => {
       setPhase("awaiting");
@@ -495,10 +535,61 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     }, 400);
   }, []);
 
-  const handleEnter = useCallback(() => {
+  const preloadHomeAssets = useCallback(async () => {
+    if (preloadPromiseRef.current) {
+      return preloadPromiseRef.current;
+    }
+
+    preloadPromiseRef.current = (async () => {
+      await Promise.all([preloadParallaxFrames(), preloadImages(HOME_PRELOAD_IMAGES)]);
+
+      await Promise.allSettled(
+        HOME_PRELOAD_AUDIO.map(
+          (source) =>
+            new Promise<void>((resolve) => {
+              const audio = new Audio();
+              audio.preload = "auto";
+              const complete = () => {
+                audio.removeEventListener("canplaythrough", complete);
+                audio.removeEventListener("loadeddata", complete);
+                audio.removeEventListener("error", complete);
+                resolve();
+              };
+              audio.addEventListener("canplaythrough", complete, { once: true });
+              audio.addEventListener("loadeddata", complete, { once: true });
+              audio.addEventListener("error", complete, { once: true });
+              audio.src = source;
+              audio.load();
+            }),
+        ),
+      );
+    })();
+
+    return preloadPromiseRef.current;
+  }, []);
+
+  const handleEnter = useCallback(async () => {
+    if (isEntering) {
+      return;
+    }
+
+    const startTs = performance.now();
+    setIsEntering(true);
     stopRain();
-    setPhase("transitioning");
-  }, [stopRain]);
+
+    try {
+      await preloadHomeAssets();
+    } catch {
+      // Continue transition even if some assets fail to preload.
+    } finally {
+      const elapsed = performance.now() - startTs;
+      if (elapsed < ENTERING_MIN_VISIBILITY_MS) {
+        await new Promise((resolve) => setTimeout(resolve, ENTERING_MIN_VISIBILITY_MS - elapsed));
+      }
+      setPhase("transitioning");
+      setIsEntering(false);
+    }
+  }, [isEntering, preloadHomeAssets, stopRain]);
 
   return (
     <>
@@ -523,8 +614,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
           <>
             <BackgroundAudio shouldPlay={shouldPlayHomeAudio} muted={isMuted} />
             <ParallaxSequence isActive={shouldRenderHomeLayers} />
-            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers} />
-            <LightningLayer isActive={shouldRenderHomeLayers} />
+            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} />
+            <LightningLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} />
           </>
         )}
 
@@ -543,12 +634,14 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
             <div className={`cine-blackout ${isFadingToBlack ? "cine-blackout-active" : ""}`} />
 
             {/* ── Frame image ── */}
+            {!isIntroFrameReady && <div className="cine-frame cine-frame-placeholder" aria-hidden="true" />}
             <img
-              key={currentFrame.src}
               ref={imageRef}
               src={currentFrame.src}
               alt=""
               className="cine-frame"
+              style={isIntroFrameReady ? undefined : { opacity: 0 }}
+              onLoad={() => setIsIntroFrameReady(true)}
             />
 
             {/* ── Dystopian film treatment ── */}
@@ -559,8 +652,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
             {/* ── Cinematic subtitle (typewriter) ── */}
             {phase === "cinematic" && (
               <p key={`sub-${frameIndex}`} ref={subtitleRef} className="cine-subtitle">
-                {typedText}
-                <span className="cine-cursor" />
+                {typedText || "Loading..."}
+                {typedText ? <span className="cine-cursor" /> : null}
               </p>
             )}
 
@@ -591,9 +684,15 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
                 <p className="cine-reveal cine-tagline-sub">
                   In an AI dystopia, I build the skills that stay irreplaceable.
                 </p>
-                <button className="cine-reveal cine-enter" onClick={handleEnter} type="button">
+                <button
+                  className="cine-reveal cine-enter"
+                  onClick={handleEnter}
+                  type="button"
+                  disabled={isEntering}
+                  aria-busy={isEntering}
+                >
                   <span className="cine-enter-glow" />
-                  <span className="cine-enter-text">Enter the Story</span>
+                  <span className="cine-enter-text">{isEntering ? "Entering..." : "Enter the Story"}</span>
                 </button>
               </div>
             )}

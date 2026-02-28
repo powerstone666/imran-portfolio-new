@@ -131,7 +131,7 @@ export default function ExperienceSection() {
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=160%",
+            end: "+=100%",
             scrub: 0.4,
             pin: true,
             pinSpacing: true,
@@ -183,7 +183,7 @@ export default function ExperienceSection() {
           scrollTrigger: {
             trigger: panel,
             start: "bottom bottom",
-            end: "+=140%",
+            end: "+=80%",
             scrub: 0.3,
             pin: true,
             pinSpacing: true,

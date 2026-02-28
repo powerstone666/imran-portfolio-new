@@ -24,6 +24,37 @@ export default function Navbar({
   onToggleMute,
 }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("#");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      let currentSection = "#";
+      
+      for (const item of NAV_ITEMS) {
+        if (item.href === "#") continue;
+        const sectionEl = document.getElementById(item.href.substring(1));
+        if (sectionEl) {
+          const rect = sectionEl.getBoundingClientRect();
+          // Assume section is active if it occupies the top ~40% of the screen
+          if (rect.top <= window.innerHeight * 0.4 && rect.bottom >= window.innerHeight * 0.3) {
+            currentSection = item.href;
+          }
+        }
+      }
+
+      console.log("Current active section:", currentSection);
+      setActiveSection(currentSection);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    // setTimeout to ensure layout has occurred for newly mounted sections
+    const timeoutId = setTimeout(handleScroll, 200);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -92,7 +123,7 @@ export default function Navbar({
           {NAV_ITEMS.map((item) => (
             <li key={item.label}>
               <a
-                className="noir-navbar-link"
+                className={`noir-navbar-link ${activeSection === item.href ? "active" : ""}`}
                 href={item.href}
                 onClick={closeMenu}
               >

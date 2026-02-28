@@ -9,7 +9,9 @@ import {
 } from "../lib/assistant-audio";
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 
-const AUDIO_SOURCE = "/new-music.mp3";
+const AUDIO_SOURCE = " ";
+const CHERRY_MUSIC_VOLUME = 0.32;
+const ASSISTANT_VOICE_VOLUME = 1.0;
 const NODE_COUNT = 56;
 const HALF_NODE_COUNT = Math.floor(NODE_COUNT / 2);
 const FFT_SIZE = 1024;
@@ -39,6 +41,7 @@ type AiVoiceSectionProps = {
 };
 
 export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps) {
+  const sectionRef = useRef<HTMLElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -92,6 +95,47 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
         previewAudio.pause();
       }
     }
+  }, [isMuted]);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        
+        const assistantAudio = assistantAudioRef.current;
+        if (!assistantAudio) return;
+
+        if (entry.isIntersecting) {
+          if (!isMuted) {
+            const isPlayingIntro =
+              !assistantAudio.paused && assistantAudio.src.includes("cherry.mp3");
+
+            if (!isPlayingIntro) {
+              assistantAudio.src = "/ai/cherry.mp3";
+              assistantAudio.currentTime = 0;
+              assistantAudio.volume = CHERRY_MUSIC_VOLUME;
+              requestAudioFocus(assistantAudio);
+              void assistantAudio.play().catch(() => {
+                // Ignore NotAllowedError (Autoplay prevented)
+              });
+            }
+          }
+        } else {
+          // Pause if intro/song is playing and we leave the section
+          const isSong = assistantAudio.src.includes(".mp3");
+          if (isSong && !assistantAudio.paused) {
+            assistantAudio.pause();
+          }
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
   }, [isMuted]);
 
   useEffect(() => {
@@ -243,7 +287,19 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
   // -- Audio Recording Logic -- //
   const startRecording = async () => {
     if (isAssistantPlaying) {
-      return;
+      const assistantAudio = assistantAudioRef.current;
+      if (assistantAudio) {
+        assistantAudio.pause();
+      }
+      setIsAssistantPlaying(false);
+      isSpeakingRef.current = false;
+    } else {
+      // If intro or music is playing, pause it before recording.
+      const assistantAudio = assistantAudioRef.current;
+      if (assistantAudio && !assistantAudio.paused) {
+        assistantAudio.pause();
+        isSpeakingRef.current = false;
+      }
     }
 
     try {
@@ -390,6 +446,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
   return (
     <section
       id="ai"
+      ref={sectionRef}
       className="relative flex min-h-screen flex-col justify-start gap-3 overflow-hidden border-t border-white/10 px-6 py-14 md:gap-5 md:py-16"
     >
       <div
@@ -403,10 +460,13 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_82%,rgba(255,255,255,0.08),transparent_48%)]" />
 
-      <div className="relative z-2 flex flex-col items-center">
+      <div className="relative z-2 flex flex-col items-center gap-1.5 mt-4 md:mt-0">
         <h3 className="text-3xl font-black uppercase tracking-[0.14em] text-zinc-100 md:text-5xl text-center">
           Meet Cherry
         </h3>
+        <p className="text-zinc-400 text-xs md:text-sm font-medium uppercase tracking-[0.2em] text-center max-w-md opacity-80">
+          Because every protagonist needs reliable backup.
+        </p>
       </div>
 
       <div className="relative z-2 flex w-full justify-center group/canvas mt-4">
@@ -463,13 +523,13 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
           <>
             <button
               type="button"
-              disabled={isLoading || isAssistantPlaying}
+              disabled={isLoading}
               onClick={isRecording ? stopRecording : startRecording}
               className={[
                 "inline-flex h-20 w-20 items-center justify-center rounded-full border transition-all duration-300 relative group",
                 isRecording 
                   ? "border-zinc-300 bg-zinc-100 text-black shadow-[0_0_30px_rgba(255,255,255,0.4)] scale-110"
-                  : isLoading || isAssistantPlaying
+                  : isLoading
                     ? "border-zinc-500 bg-zinc-800/40 text-zinc-300 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                     : "border-zinc-100/35 bg-black/45 text-zinc-100 hover:border-zinc-300 hover:bg-zinc-800/40 hover:text-white hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]"
               ].join(" ")}
@@ -485,7 +545,7 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
             </button>
             
             <span className={`text-xs font-medium uppercase tracking-widest transition-colors ${isRecording ? 'text-zinc-100 animate-pulse' : 'text-zinc-500'}`}>
-              {isAssistantPlaying ? "Assistant Speaking..." : isLoading ? 'Processing' : isRecording ? 'Recording...' : 'Tap to Record'}
+              {isAssistantPlaying ? "Assistant Speaking..." : isLoading ? 'Processing' : isRecording ? 'Recording...' : 'Tap to Speak'}
             </span>
           </>
         )}
@@ -510,9 +570,18 @@ export default function AiVoiceSection({ isMuted = false }: AiVoiceSectionProps)
           const assistantAudio = assistantAudioRef.current;
           if (assistantAudio) {
             requestAudioFocus(assistantAudio);
+            
+            // Check if it's the AI speaking (blob) vs a music/intro file
+            const isCherryTrack = assistantAudio.src.includes("cherry.mp3");
+            if (isCherryTrack) {
+              assistantAudio.volume = CHERRY_MUSIC_VOLUME;
+              setIsAssistantPlaying(false); // Do not show "Assistant Speaking" text
+            } else {
+              assistantAudio.volume = ASSISTANT_VOICE_VOLUME;
+              setIsAssistantPlaying(true);
+            }
           }
           isSpeakingRef.current = true;
-          setIsAssistantPlaying(true);
         }}
         onPause={() => {
           isSpeakingRef.current = false;

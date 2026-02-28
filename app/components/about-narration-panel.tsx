@@ -20,12 +20,14 @@ type AboutNarrationPanelProps = {
   activeImage: string;
   isMuted?: boolean;
   narrationSegments: NarrationSegment[];
+  onImageError?: (image: string) => void;
 };
 
 export default function AboutNarrationPanel({
   activeImage,
   isMuted = false,
   narrationSegments,
+  onImageError,
 }: AboutNarrationPanelProps) {
   const [activeNarrationIndex, setActiveNarrationIndex] = useState(0);
   const [narrationCurrentTime, setNarrationCurrentTime] = useState(0);
@@ -221,7 +223,7 @@ export default function AboutNarrationPanel({
     <div ref={panelRef} className="relative mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(280px,420px)_1fr] lg:gap-12">
       <div className="rounded-3xl border border-white/20 bg-black/35 p-4 shadow-[0_28px_64px_rgba(0,0,0,0.45)] backdrop-blur-md">
         <div className="relative overflow-hidden rounded-2xl border border-white/14">
-          <div className="relative aspect-square">
+          <div className="relative aspect-12/10">
             <Image
               key={activeImage}
               src={activeImage}
@@ -229,6 +231,7 @@ export default function AboutNarrationPanel({
               fill
               sizes="(max-width: 1024px) 100vw, 420px"
               className="about-showcase-image object-cover"
+              onError={() => onImageError?.(activeImage)}
             />
           </div>
         </div>

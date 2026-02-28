@@ -72,7 +72,7 @@ export default function ProjectsSection() {
       if (title && track) {
         gsap.fromTo(
           [title, track],
-          { opacity: 0, y: 80 },
+          { opacity: 0, y: 40 },
           {
             opacity: 1,
             y: 0,
@@ -80,7 +80,7 @@ export default function ProjectsSection() {
             ease: "power3.out",
             scrollTrigger: {
               trigger: section,
-              start: "top 85%", // Starts animating when Projects section is 15% into viewport
+              start: "top 95%", // Starts animating earlier
               end: "top 35%",
               scrub: 1.2,
             },
@@ -172,7 +172,7 @@ export default function ProjectsSection() {
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            "linear-gradient(180deg, rgba(4,6,10,0.95) 0%, rgba(4,6,10,0.45) 30%, rgba(4,6,10,0.45) 70%, rgba(4,6,10,0.95) 100%), url('/projects/projects-map-main.png')",
+            "linear-gradient(180deg, rgba(4,6,10,0.85) 0%, rgba(4,6,10,0.35) 15%, rgba(4,6,10,0.35) 85%, rgba(4,6,10,0.85) 100%), url('/projects/projects-map-main.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
