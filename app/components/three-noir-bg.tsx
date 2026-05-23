@@ -40,6 +40,7 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
     if (!renderer) {
       return;
     }
+    renderer.setClearColor(0x000000, 0); // Transparent background
     renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
