@@ -14,14 +14,14 @@ function randomInRange(min: number, max: number) {
 
 type LightningLayerProps = {
   isActive?: boolean;
-  isLowEnd?: boolean;
+  jitTier?: 'slow' | 'fast' | 'blazing';
 };
 
-export default function LightningLayer({ isActive = true, isLowEnd = false }: LightningLayerProps) {
+export default function LightningLayer({ isActive = true, jitTier = 'fast' }: LightningLayerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isActive || isLowEnd) {
+    if (!isActive || jitTier !== 'blazing') {
       return;
     }
 
@@ -147,7 +147,7 @@ export default function LightningLayer({ isActive = true, isLowEnd = false }: Li
         mountNode.removeChild(renderer.domElement);
       }
     };
-  }, [isActive, isLowEnd]);
+  }, [isActive, jitTier]);
 
   return <div ref={mountRef} className="noir-layer-lightning" aria-hidden="true" />;
 }

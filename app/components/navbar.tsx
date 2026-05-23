@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Menu, Volume2, VolumeX, X } from "lucide-react";
+import PerformanceBadge from "./performance-badge";
 
 const NAV_ITEMS = [
   { label: "Home", href: "#" },
@@ -78,6 +79,7 @@ export default function Navbar({
 
   return (
     <header className="noir-layer-nav">
+      <PerformanceBadge />
       <nav
         className={[
           "noir-navbar",
@@ -87,9 +89,11 @@ export default function Navbar({
         aria-label="Primary"
       >
         <div className="flex w-full md:w-auto items-center justify-between gap-3">
-          <a className="noir-navbar-brand" href="#" onClick={closeMenu}>
-            IMRAN PASHA
-          </a>
+          <div className="flex items-center gap-3">
+            <a className="noir-navbar-brand" href="#" onClick={closeMenu}>
+              IMRAN PASHA
+            </a>
+          </div>
 
           {/* Mobile controls */}
           <div className="flex items-center gap-2 md:hidden">

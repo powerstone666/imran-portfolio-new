@@ -6,7 +6,7 @@ import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
 type EnvironmentCursorLayerProps = {
   isActive?: boolean;
-  isLowEnd?: boolean;
+  jitTier?: 'slow' | 'fast' | 'blazing';
 };
 
 function createSoftTexture() {
@@ -27,22 +27,23 @@ function createSoftTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = false }: EnvironmentCursorLayerProps) {
+export default function EnvironmentCursorLayer({ isActive = true, jitTier = 'fast' }: EnvironmentCursorLayerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isActive) return;
+    if (jitTier !== 'blazing') return;
     if (window.matchMedia("(pointer: coarse)").matches) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const mountNode = mountRef.current;
     if (!mountNode) return;
 
-    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: false });
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 1.2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -51,13 +52,8 @@ export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = fal
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     camera.position.z = 1;
 
-    // Reduce particles heavily on low-end devices
-    const getParticleCount = () => {
-      if (isLowEnd) return 40;
-      return window.innerWidth < 900 ? 180 : 280;
-    };
-    
-    const particleCount = getParticleCount();
+    // Particle count gated by early return for low/mid, so only high-end runs this
+    const particleCount = window.innerWidth < 900 ? 180 : 280;
     const positions = new Float32Array(particleCount * 3);
     const seeds = new Float32Array(particleCount);
 
@@ -110,7 +106,7 @@ export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = fal
     };
 
     const onResize = () => {
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
 
@@ -176,7 +172,7 @@ export default function EnvironmentCursorLayer({ isActive = true, isLowEnd = fal
         mountNode.removeChild(renderer.domElement);
       }
     };
-  }, [isActive, isLowEnd]);
+  }, [isActive, jitTier]);
 
   return <div ref={mountRef} className="noir-layer-environment" aria-hidden="true" />;
 }

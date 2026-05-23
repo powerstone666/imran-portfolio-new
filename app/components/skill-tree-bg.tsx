@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 /**
  * Yggdrasil-style SVG world tree background.
@@ -10,6 +11,7 @@ import { useEffect, useRef } from "react";
  */
 export default function SkillTreeBg() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { jitTier } = useDevicePerformance();
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -17,11 +19,24 @@ export default function SkillTreeBg() {
 
     // Animate paths with scroll
     const paths = svg.querySelectorAll<SVGPathElement>(".tree-path");
+    
+    // Cache path lengths on mount to avoid repeated DOM calculations
+    const pathLengths: number[] = [];
     paths.forEach((path) => {
       const length = path.getTotalLength();
+      pathLengths.push(length);
       path.style.strokeDasharray = `${length}`;
       path.style.strokeDashoffset = `${length}`;
     });
+
+    // For low/mid devices, skip scroll animation and just show the static tree
+    if (jitTier !== 'blazing') {
+      paths.forEach((path) => {
+        path.style.strokeDashoffset = "0";
+        path.style.opacity = "1";
+      });
+      return;
+    }
 
     let ticking = false;
     const onScroll = () => {
@@ -37,7 +52,7 @@ export default function SkillTreeBg() {
         const progress = Math.max(0, Math.min(1, (revealStart - rect.top) / (revealStart - revealEnd)));
 
         paths.forEach((path, idx) => {
-          const length = path.getTotalLength();
+          const length = pathLengths[idx];
           const delay = idx * 0.03;
           const p = Math.max(0, Math.min(1, (progress - delay) / 0.7));
           path.style.strokeDashoffset = `${length * (1 - p)}`;
@@ -56,7 +71,7 @@ export default function SkillTreeBg() {
     onScroll();
 
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [jitTier]);
 
   const trunkColor = "rgba(160,175,200,0.35)";
   const branchColor = "rgba(160,175,200,0.25)";

@@ -73,7 +73,7 @@ type HomeExperienceProps = {
 };
 
 export default function HomeExperience({ isMuted = false, onToggleMute, onOpenChange }: HomeExperienceProps) {
-  const { isLowEnd } = useDevicePerformance();
+  const { jitTier } = useDevicePerformance();
   const [phase, setPhase] = useState<"cinematic" | "awaiting" | "transitioning" | "open">("cinematic");
   const [frameIndex, setFrameIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
@@ -443,21 +443,31 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     const content = revealContentRef.current;
     if (!section || !pinWrap || !content) return;
 
+    // ── SLOW: No blur, just fade ──
+    // ── FAST: Light blur + scale ──
+    // ── BLAZING: Full blur + scale ──
+    const isSlow = jitTier === "slow";
+    const isBlazing = jitTier === "blazing";
+
     const revealTween = gsap.fromTo(
       content,
-      { opacity: 0, y: 130, scale: 0.96, filter: "blur(8px)" },
+      isSlow
+        ? { opacity: 0, y: 40 }
+        : isBlazing
+        ? { opacity: 0, y: 130, scale: 0.96, filter: "blur(8px)" }
+        : { opacity: 0, y: 80, scale: 0.98, filter: "blur(4px)" },
       {
         opacity: 1,
         y: 0,
-        scale: 1,
-        filter: "blur(0px)",
+        ...(isBlazing && { scale: 1, filter: "blur(0px)" }),
+        ...(jitTier === "fast" && { scale: 1, filter: "blur(0px)" }),
         duration: 1.05,
         ease: "power3.out",
         scrollTrigger: {
           trigger: section,
           start: "top top",
           end: HOME_REVEAL_SCROLL_END,
-          scrub: 0.45,
+          scrub: isBlazing ? 0.45 : true,
           toggleActions: "play none none reverse",
         },
       },
@@ -615,9 +625,9 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
         {shouldRunMainScene && (
           <>
             <BackgroundAudio shouldPlay={shouldPlayHomeAudio} muted={isMuted} />
-            <ParallaxSequence isActive={shouldRenderHomeLayers} isLowEnd={isLowEnd} />
-            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} isLowEnd={isLowEnd} />
-            <LightningLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} isLowEnd={isLowEnd} />
+            <ParallaxSequence isActive={shouldRenderHomeLayers} jitTier={jitTier} />
+            <EnvironmentCursorLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} jitTier={jitTier} />
+            <LightningLayer isActive={shouldRenderHomeLayers && areSecondaryLayersReady} jitTier={jitTier} />
           </>
         )}
 

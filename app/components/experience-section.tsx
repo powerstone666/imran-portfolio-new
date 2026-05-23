@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Briefcase, Shield, MapPin, Calendar } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 gsap.registerPlugin(ScrollTrigger);
 gsap.ticker.lagSmoothing(500, 33);
@@ -66,6 +67,7 @@ function FaviconBadge({ label, domain, logoUrl, iconUrl }: Badge) {
 }
 
 export default function ExperienceSection() {
+  const { jitTier } = useDevicePerformance();
   const titleRef = useRef<HTMLDivElement>(null);
   const securityPanelRef = useRef<HTMLElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -82,6 +84,30 @@ export default function ExperienceSection() {
     const tagWrapper = securityTagWrapperRef.current;
     if (!panel || !topLayer || !baseLayer || !card || !tagWrapper) return;
 
+    // ── SLOW: Static, no animations ──
+    if (jitTier === 'slow') {
+      gsap.set([topLayer, baseLayer, card, tagWrapper], { opacity: 1, rotation: 0, scale: 1 });
+      return () => {};
+    }
+
+    // ── FAST: Simple fade/slide on scroll, no rotation/pin ──
+    if (jitTier === 'fast') {
+      const ctx = gsap.context(() => {
+        if (titleRef.current) {
+          gsap.fromTo(
+            titleRef.current,
+            { opacity: 0, y: 40 },
+            { opacity: 1, y: 0, ease: "none", scrollTrigger: { trigger: sectionRef.current, start: "top 80%", end: "top 50%", scrub: true } },
+          );
+        }
+        gsap.fromTo(topLayer, { opacity: 0, x: -30 }, { opacity: 1, x: 0, ease: "none", scrollTrigger: { trigger: panel, start: "top 80%", end: "top 30%", scrub: true } });
+        gsap.fromTo(card, { opacity: 0, y: 40 }, { opacity: 1, y: 0, ease: "none", scrollTrigger: { trigger: panel, start: "top 80%", end: "top 30%", scrub: true } });
+        gsap.fromTo(tagWrapper, { opacity: 0, x: 30 }, { opacity: 1, x: 0, ease: "none", scrollTrigger: { trigger: panel, start: "top 80%", end: "top 30%", scrub: true } });
+      }, panel);
+      return () => { ctx.revert(); };
+    }
+
+    // ── BLAZING: Full rotation + pin + force3D ──
     const ctx = gsap.context(() => {
       const title = titleRef.current;
       const mm = gsap.matchMedia();
@@ -219,7 +245,7 @@ export default function ExperienceSection() {
       card.classList.remove("experience-glitch-card-lite");
       ctx.revert();
     };
-  }, []);
+  }, [jitTier]);
 
   return (
     <section ref={sectionRef} id="experience" className="relative z-45 border-t border-white/10 bg-[#050608]">

@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ThreeNoirBg from "./three-noir-bg";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 import {
   SiJavascript,
@@ -186,6 +187,7 @@ function BranchGroup({ branch }: { branch: Branch }) {
 
 /* ── Main component ─────────────────────────────────────── */
 export default function SkillsSection() {
+  const { jitTier } = useDevicePerformance();
   const sectionRef = useRef<HTMLElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -196,12 +198,23 @@ export default function SkillsSection() {
     const title = titleRef.current;
     if (!section || !tree || !title) return;
 
+    const isSlow = jitTier === 'slow';
+    const isBlazing = jitTier === 'blazing';
+
     const ctx = gsap.context(() => {
+      // ── Title animation ──
       gsap.fromTo(
         title,
-        { opacity: 0, y: 50, filter: "blur(8px)" },
+        isSlow
+          ? { opacity: 0, y: 30 }
+          : isBlazing
+          ? { opacity: 0, y: 50, filter: "blur(8px)" }
+          : { opacity: 0, y: 40, filter: "blur(4px)" },
         {
-          opacity: 1, y: 0, filter: "blur(0px)", ease: "none",
+          opacity: 1, y: 0,
+          ...(isBlazing && { filter: "blur(0px)" }),
+          ...(jitTier === 'fast' && { filter: "blur(0px)" }),
+          ease: "none",
           scrollTrigger: { trigger: section, start: "top 82%", end: "top 50%", scrub: 0.6 },
         },
       );
@@ -235,6 +248,9 @@ export default function SkillsSection() {
           scrollTrigger: { trigger: tree, start: "top 80%", end: "top 45%", scrub: 0.6 },
         },
       );
+
+      // Skip complex glow animation on slow/fast devices
+      if (!isBlazing) return;
 
       // Flowing glow animation — energy pulse flows top → bottom
       const allFlowEls = Array.from(tree.querySelectorAll(".tree-glow, .skill-tree-node"));
@@ -332,7 +348,7 @@ export default function SkillsSection() {
     });
 
     return () => ctx.revert();
-  }, []);
+  }, [jitTier]);
 
   const langColor = "rgb(200 210 255)";
   const toolColor = "rgb(220 220 180)";
@@ -355,7 +371,7 @@ export default function SkillsSection() {
 
       {/* ── 3D Rain & Fog Overlay ── */}
       <div className="pointer-events-none absolute inset-0 z-10 w-full h-full overflow-hidden">
-        <ThreeNoirBg />
+        <ThreeNoirBg jitTier={jitTier} />
       </div>
 
       {/* ── Noir gradient overlay ── */}

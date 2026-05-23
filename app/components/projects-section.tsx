@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -52,6 +53,9 @@ const PROJECTS = [
 ] as const;
 
 export default function ProjectsSection() {
+  const { jitTier } = useDevicePerformance();
+  const isBlazing = jitTier === "blazing";
+  const isFast = jitTier === "fast";
   const sectionRef = useRef<HTMLElement>(null);
   const railViewportRef = useRef<HTMLDivElement>(null);
   const railTrackRef = useRef<HTMLDivElement>(null);
@@ -68,49 +72,81 @@ export default function ProjectsSection() {
     if (!section || !viewport || !track) return;
 
     const context = gsap.context(() => {
-      // 1. Title & track entry transition when coming from Experience section
+      // ── ALL TIERS: Title + track fade-in ──
       if (title && track) {
         gsap.fromTo(
           [title, track],
-          { opacity: 0, y: 40 },
+          { opacity: 0, y: 24 },
           {
             opacity: 1,
             y: 0,
-            stagger: 0.15,
-            ease: "power3.out",
+            stagger: 0.1,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: section,
-              start: "top 95%", // Starts animating earlier
-              end: "top 35%",
-              scrub: 1.2,
+              start: "top 85%",
+              end: "top 40%",
+              scrub: true,
             },
           }
         );
       }
 
-      // 2. Background (River) cinematic fade-in transition
+      // ── ALL TIERS: Background fade-in ──
       if (bgContainer) {
         gsap.fromTo(
           bgContainer,
-          { opacity: 0, scale: 1.05 },
+          { opacity: 0 },
           {
             opacity: 1,
-            scale: 1,
             ease: "none",
             scrollTrigger: {
               trigger: section,
-              start: "top 95%", // Right as it becomes visible below Experience
-              end: "top 20%",
-              scrub: 1,
+              start: "top 95%",
+              end: "top 30%",
+              scrub: true,
             },
           }
         );
       }
 
+      // ── ALL TIERS: Horizontal scroll ──
       const getMaxShift = () => Math.max(0, track.scrollWidth - viewport.clientWidth);
-
       gsap.set(track, { x: 0 });
 
+      // Slow: light horizontal scroll, no pin
+      if (!isFast && !isBlazing) {
+        gsap.to(track, {
+          x: () => -getMaxShift(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top 60%",
+            end: "bottom 40%",
+            scrub: true,
+          },
+        });
+        return;
+      }
+
+      // Fast: horizontal scroll + pin, no card scale
+      if (isFast) {
+        gsap.to(track, {
+          x: () => -getMaxShift(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top top",
+            end: () => `+=${getMaxShift()}`,
+            scrub: 1,
+            pin: true,
+            invalidateOnRefresh: true,
+          },
+        });
+        return;
+      }
+
+      // ── BLAZING: Full horizontal scroll + pin + card scale ──
       const trackScroll = gsap.to(track, {
         x: () => -getMaxShift(),
         ease: "none",
@@ -125,31 +161,30 @@ export default function ProjectsSection() {
         },
       });
 
-      // 3. Card scale effect as they scroll into center
+      // Card scale effect as they scroll into center
       cardsRef.current.forEach((card) => {
         if (!card) return;
 
-        // Animate the scale of the card based on its position in the viewport
         gsap.to(card, {
-          scale: 1.05, // Slightly zoom in 
+          scale: 1.05,
           ease: "power1.inOut",
           scrollTrigger: {
             trigger: card,
             containerAnimation: trackScroll,
-            start: "left center", // Start zooming when the left edge hits the center
-            end: "center center", // Fully zoomed when the card center hits the center
+            start: "left center",
+            end: "center center",
             scrub: true,
           },
         });
 
         gsap.to(card, {
-          scale: 1, // Return to normal scale
+          scale: 1,
           ease: "power1.inOut",
           scrollTrigger: {
             trigger: card,
             containerAnimation: trackScroll,
-            start: "center center", // Start shrinking when the card center passes the center
-            end: "right center", // Fully returned to normal when the right edge hits the center
+            start: "center center",
+            end: "right center",
             scrub: true,
           },
         });
@@ -159,7 +194,7 @@ export default function ProjectsSection() {
 
     ScrollTrigger.refresh();
     return () => context.revert();
-  }, []);
+  }, [isBlazing, isFast]);
 
   return (
     <section
@@ -198,7 +233,7 @@ export default function ProjectsSection() {
           <div ref={railViewportRef} className="overflow-hidden pb-2">
             <div
               ref={railTrackRef}
-              className="flex min-w-max items-start px-1 py-3 pr-4 md:pr-6 will-change-transform"
+              className="flex min-w-max items-start px-1 py-3 pr-4 md:pr-6"
             >
               {PROJECTS.map((project, index) => (
                 <div key={project.title} className="flex items-start">
@@ -206,7 +241,7 @@ export default function ProjectsSection() {
                     ref={(el) => {
                       cardsRef.current[index] = el;
                     }}
-                    className="w-82.5 shrink-0 snap-start rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-90 md:p-6 origin-center will-change-transform"
+                    className="w-82.5 shrink-0 snap-start rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-90 md:p-6"
                   >
                     <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-400/90">Case File</p>
                     <h3 className="mt-2 text-2xl font-black uppercase tracking-[0.06em] text-zinc-100 md:text-3xl">

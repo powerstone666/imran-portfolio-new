@@ -1,57 +1,81 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from "react";
+import { performanceMonitor } from "./performance-monitor";
+import type { PerformanceTier } from "./performance-monitor";
 
-declare global {
-  interface Navigator {
-    deviceMemory?: number;
-  }
+// ── Measure actual rendering FPS for ~1 second ──
+function measureInitialFps(): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(30);
+      return;
+    }
+
+    let frames = 0;
+    const start = performance.now();
+    let rafId: number;
+
+    const tick = () => {
+      frames++;
+      const elapsed = performance.now() - start;
+      if (elapsed < 600) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        const fps = (frames / elapsed) * 1000;
+        resolve(fps);
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+  });
+}
+
+function getTierFromFps(fps: number): PerformanceTier {
+  if (fps <= 10) return "slow";
+  if (fps <= 39) return "fast";
+  return "blazing";
 }
 
 export function useDevicePerformance() {
-  const [isReducedMotion, setIsReducedMotion] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    }
-    return false;
-  });
-
-  const [isLowEnd] = useState(() => {
-    if (typeof navigator !== 'undefined') {
-      let lowEndDetected = false;
-      if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) {
-        lowEndDetected = true;
-      }
-      if (navigator.deviceMemory && navigator.deviceMemory < 4) {
-        lowEndDetected = true;
-      }
-      return lowEndDetected;
-    }
-    return false;
-  });
+  const [jitTier, setJitTier] = useState<PerformanceTier>("fast");
+  const [isReady, setIsReady] = useState(false);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (startedRef.current) return;
+    startedRef.current = true;
 
-    const handleMotionChange = (e: MediaQueryListEvent) => {
-      setIsReducedMotion(e.matches);
+    const init = async () => {
+      // Wait a tick for the page to start rendering
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Measure actual FPS during startup
+      const initialFps = await measureInitialFps();
+      const initialTier = getTierFromFps(initialFps);
+
+      // Set the initial tier BEFORE starting the monitor
+      setJitTier(initialTier);
+      setIsReady(true);
+
+      // Start the monitor with the measured tier
+      // The monitor will immediately notify all subscribers with the initial tier
+      performanceMonitor.start(initialTier);
     };
 
-    if (motionQuery.addEventListener) {
-      motionQuery.addEventListener('change', handleMotionChange);
-    } else {
-      motionQuery.addListener(handleMotionChange);
-    }
+    init();
 
     return () => {
-      if (motionQuery.removeEventListener) {
-        motionQuery.removeEventListener('change', handleMotionChange);
-      } else {
-        motionQuery.removeListener(handleMotionChange);
-      }
+      performanceMonitor.stop();
     };
   }, []);
 
-  // Recalculate combined state
-  const isDeviceLowEnd = isLowEnd || isReducedMotion;
+  useEffect(() => {
+    return performanceMonitor.subscribe((newTier) => {
+      setJitTier(newTier);
+    });
+  }, []);
 
-  return { isLowEnd: isDeviceLowEnd, isReducedMotion };
+  return {
+    jitTier,
+    isReady,
+  };
 }

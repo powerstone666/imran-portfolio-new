@@ -4,11 +4,13 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
 
+type PerformanceTier = "slow" | "fast" | "blazing";
+
 type ThreeNoirBgProps = {
-  isLowEnd?: boolean;
+  jitTier?: PerformanceTier;
 };
 
-export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {}) {
+export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,9 +20,13 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
     const RAIN_WORLD_TOP = 1200;
     const RAIN_WORLD_BOTTOM = -1200;
 
+    const isLow = jitTier === "slow";
+    const isMid = jitTier === "fast";
+    const isHigh = jitTier === "blazing";
+
     // 1. Setup Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    
+
     // Slight fog to blend particles into the distance
     scene.fog = new THREE.FogExp2(0x0a0a0f, 0.0015);
 
@@ -29,17 +35,17 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
     camera.position.y = CAMERA_BASE_Y;
     camera.lookAt(0, CAMERA_BASE_Y, 0);
 
-    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSafeWebGLRenderer({ alpha: true, antialias: isHigh });
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1.0 : 2.0));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isHigh ? 2.0 : 1.0));
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.width = "100%";
     renderer.domElement.style.height = "100%";
     renderer.domElement.style.display = "block";
-    
+
     // Append to container
     container.appendChild(renderer.domElement);
 
@@ -53,8 +59,8 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
     };
     applyViewportSize();
 
-    // 2. Rain Particles (Reduce heavily on low-end devices)
-    const rainCount = isLowEnd ? 150 : 1500;
+    // 2. Rain Particles (Tiered counts)
+    const rainCount = isHigh ? 1500 : isMid ? 400 : 100;
     const rainGeometry = new THREE.BufferGeometry();
     const rainPositions = new Float32Array(rainCount * 3);
     const rainVelocities: { y: number }[] = [];
@@ -75,7 +81,7 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
     // Simple white/cyan material for rain
     const rainMaterial = new THREE.PointsMaterial({
       color: 0xffffff,
-      size: 4.0, // increased size slightly to ensure visibility
+      size: isHigh ? 4.0 : 3.0,
       transparent: true,
       opacity: 0.9,
       blending: THREE.AdditiveBlending,
@@ -83,38 +89,43 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
 
     // Store the system
     const rainSystem = new THREE.Points(rainGeometry, rainMaterial);
-    
+
     // Crucial: ensure Three.js knows we intend to constantly update these positions
     (rainGeometry.attributes.position as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
-    
+
     scene.add(rainSystem);
 
-    // 3. Ground Fog (Simple planes)
-    const fogGroup = new THREE.Group();
-    const fogGeo = new THREE.PlaneGeometry(2500, 500);
-    
-    // Create a very soft gradient material to simulate fog bands
-    // We don't have a texture loader handy without an asset, so we'll 
-    // rely on opacity blending of planes in the background
-    const fogMat = new THREE.MeshBasicMaterial({
-      color: 0xc8d2ff,
-      transparent: true,
-      opacity: 0.03,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
+    // 3. Ground Fog (Simple planes) — only on high-end
+    let fogGroup: THREE.Group | null = null;
+    let fogGeo: THREE.PlaneGeometry | null = null;
+    let fogMat: THREE.MeshBasicMaterial | null = null;
 
-    for (let i = 0; i < 5; i++) {
+    if (isHigh) {
+      fogGroup = new THREE.Group();
+      fogGeo = new THREE.PlaneGeometry(2500, 500);
+
+      // Create a very soft gradient material to simulate fog bands
+      // We don't have a texture loader handy without an asset, so we'll
+      // rely on opacity blending of planes in the background
+      fogMat = new THREE.MeshBasicMaterial({
+        color: 0xc8d2ff,
+        transparent: true,
+        opacity: 0.03,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+
+      for (let i = 0; i < 5; i++) {
         const fogMesh = new THREE.Mesh(fogGeo, fogMat);
         fogMesh.position.y = -300 + Math.random() * 100;
         fogMesh.position.z = Math.random() * 400 - 200;
         // Random slight rotation
         fogMesh.rotation.z = (Math.random() - 0.5) * 0.1;
         fogGroup.add(fogMesh);
+      }
+      scene.add(fogGroup);
     }
-    scene.add(fogGroup);
-
 
     // 4. Mouse interaction (Parallax)
     let mouseX = 0;
@@ -130,11 +141,21 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
 
     // 5. Animation Loop
     let animationFrameId: number;
-    // Replace deprecated Clock with modern Date/time fallback until Timer is properly typed
     const startTime = performance.now();
 
-    const animate = () => {
+    // Frame throttling for mid/low devices
+    const targetFrameInterval = isHigh ? 16.67 : isMid ? 33.33 : 66.67;
+    let lastFrameTime = 0;
+
+    const animate = (timestamp: number) => {
       animationFrameId = requestAnimationFrame(animate);
+
+      // Frame throttling
+      if (timestamp - lastFrameTime < targetFrameInterval) {
+        return;
+      }
+      lastFrameTime = timestamp;
+
       const time = (performance.now() - startTime) / 1000;
 
       // Animate Rain
@@ -142,7 +163,7 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
       for (let i = 0; i < rainCount; i++) {
         // Drop y based on individual velocity
         positions[i * 3 + 1] += rainVelocities[i].y;
-        
+
         // Slight wind in x direction
         positions[i * 3] -= 2;
 
@@ -156,20 +177,23 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
       }
       rainGeometry.attributes.position.needsUpdate = true;
 
-      // Animate Fog gently swaying
-      fogGroup.children.forEach((fog, idx) => {
+      // Animate Fog gently swaying (only on high-end)
+      if (fogGroup && isHigh) {
+        fogGroup.children.forEach((fog, idx) => {
           fog.position.x = Math.sin(time * 0.5 + idx) * 50;
-      });
+        });
+      }
 
-      // Camera Parallax
-      camera.position.x += (mouseX * 50 - camera.position.x) * 0.05;
-      camera.position.y += (mouseY * 30 + CAMERA_BASE_Y - camera.position.y) * 0.05;
+      // Camera Parallax (reduce intensity on mid/low)
+      const parallaxMultiplier = isHigh ? 1 : isMid ? 0.5 : 0.2;
+      camera.position.x += (mouseX * 50 * parallaxMultiplier - camera.position.x) * 0.05;
+      camera.position.y += (mouseY * 30 * parallaxMultiplier + CAMERA_BASE_Y - camera.position.y) * 0.05;
       camera.lookAt(0, CAMERA_BASE_Y, 0);
 
       renderer.render(scene, camera);
     };
 
-    animate();
+    animate(0);
 
     // 6. Handle Resize (window + container content changes)
     const onResize = () => applyViewportSize();
@@ -183,18 +207,18 @@ export default function ThreeNoirBg({ isLowEnd = false }: ThreeNoirBgProps = {})
       window.removeEventListener("resize", onResize);
       resizeObserver.disconnect();
       cancelAnimationFrame(animationFrameId);
-      
+
       if (container && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
-      
+
       rainGeometry.dispose();
       rainMaterial.dispose();
-      fogGeo.dispose();
-      fogMat.dispose();
+      fogGeo?.dispose();
+      fogMat?.dispose();
       renderer.dispose();
     };
-  }, [isLowEnd]);
+  }, [jitTier]);
 
   return (
     <div
