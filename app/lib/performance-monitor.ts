@@ -14,10 +14,13 @@ function getTierFromFps(fps: number): PerformanceTier {
 
 type Listener = (tier: PerformanceTier) => void;
 
+type PixelRatioListener = (ratio: number) => void;
+
 class PerformanceMonitor {
   private deviceTier: PerformanceTier = "fast";
   private jitTier: PerformanceTier = "fast";
   private listeners: Listener[] = [];
+  private pixelRatioListeners: PixelRatioListener[] = [];
   private rafId: number | null = null;
   private isRunning = false;
 
@@ -37,6 +40,14 @@ class PerformanceMonitor {
   private pendingTier: PerformanceTier | null = null;
   private readonly TIER_CHANGE_THRESHOLD = 3; // 3 consecutive samples (~1.5s) to switch tiers
 
+  // ── Dynamic pixel ratio ──
+  // When FPS drops below 5, reduce pixel ratio to ease GPU load
+  private currentPixelRatio = typeof window !== "undefined" ? Math.min(window.devicePixelRatio, 2.0) : 1;
+  private readonly MIN_PIXEL_RATIO = 0.5;
+  private readonly PIXEL_RATIO_STEP = 0.25;
+  private lowFpsCount = 0;
+  private readonly LOW_FPS_THRESHOLD = 2; // 2 consecutive samples below 5 FPS
+
   setDeviceTier(tier: PerformanceTier) {
     this.deviceTier = tier;
   }
@@ -53,22 +64,29 @@ class PerformanceMonitor {
     return Math.round(this.smoothedFps);
   }
 
+  getPixelRatio(): number {
+    return this.currentPixelRatio;
+  }
+
   start(initialTier: PerformanceTier) {
     if (this.isRunning || typeof window === "undefined") return;
     this.isRunning = true;
-    this.jitTier = initialTier; // Start from whatever was measured, not hardware
+    this.jitTier = initialTier;
+    this.currentPixelRatio = Math.min(window.devicePixelRatio, 2.0);
     this.lastSampleTime = performance.now();
     this.frameCount = 0;
     this.fpsHistory = [];
     this.smoothedFps = 60;
     this.tierStabilityCount = 0;
     this.pendingTier = null;
+    this.lowFpsCount = 0;
 
     document.addEventListener("visibilitychange", this.handleVisibility);
     this.rafId = requestAnimationFrame(this.tick);
 
     // Immediately notify subscribers of the initial tier
     this.notify();
+    this.notifyPixelRatio();
   }
 
   stop() {
@@ -87,6 +105,7 @@ class PerformanceMonitor {
       this.fpsHistory = [];
       this.tierStabilityCount = 0;
       this.pendingTier = null;
+      this.lowFpsCount = 0;
     }
   };
 
@@ -109,6 +128,42 @@ class PerformanceMonitor {
         this.fpsHistory.reduce((sum, val) => sum + val, 0) /
         this.fpsHistory.length;
       this.smoothedFps = avg;
+
+      // ── Dynamic pixel ratio adjustment ──
+      if (this.smoothedFps < 5) {
+        this.lowFpsCount++;
+        if (this.lowFpsCount >= this.LOW_FPS_THRESHOLD) {
+          if (this.currentPixelRatio > this.MIN_PIXEL_RATIO) {
+            this.currentPixelRatio = Math.max(
+              this.MIN_PIXEL_RATIO,
+              this.currentPixelRatio - this.PIXEL_RATIO_STEP
+            );
+            this.notifyPixelRatio();
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[JIT] FPS dropped to ${this.smoothedFps.toFixed(1)}. Reducing pixel ratio to ${this.currentPixelRatio.toFixed(2)}`
+            );
+          }
+          this.lowFpsCount = 0;
+        }
+      } else if (this.smoothedFps > 25 && this.currentPixelRatio < window.devicePixelRatio) {
+        // FPS recovered — gradually restore pixel ratio
+        this.lowFpsCount++;
+        if (this.lowFpsCount >= 4) { // ~2 seconds of good FPS
+          this.currentPixelRatio = Math.min(
+            window.devicePixelRatio,
+            this.currentPixelRatio + this.PIXEL_RATIO_STEP
+          );
+          this.notifyPixelRatio();
+          // eslint-disable-next-line no-console
+          console.log(
+            `[JIT] FPS recovered to ${this.smoothedFps.toFixed(1)}. Restoring pixel ratio to ${this.currentPixelRatio.toFixed(2)}`
+          );
+          this.lowFpsCount = 0;
+        }
+      } else {
+        this.lowFpsCount = 0;
+      }
 
       // Determine tier from smoothed value
       const detectedTier = getTierFromFps(this.smoothedFps);
@@ -145,10 +200,21 @@ class PerformanceMonitor {
     this.listeners.forEach((l) => l(this.jitTier));
   }
 
+  private notifyPixelRatio() {
+    this.pixelRatioListeners.forEach((l) => l(this.currentPixelRatio));
+  }
+
   subscribe(listener: Listener): () => void {
     this.listeners.push(listener);
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  subscribePixelRatio(listener: PixelRatioListener): () => void {
+    this.pixelRatioListeners.push(listener);
+    return () => {
+      this.pixelRatioListeners = this.pixelRatioListeners.filter((l) => l !== listener);
     };
   }
 }

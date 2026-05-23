@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
+import { performanceMonitor } from "../lib/performance-monitor";
 
 type AiAmbientLayerProps = {
   isActive?: boolean;
@@ -25,7 +26,7 @@ export default function AiAmbientLayer({ isActive = true }: AiAmbientLayerProps)
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -80,7 +81,7 @@ export default function AiAmbientLayer({ isActive = true }: AiAmbientLayerProps)
       const nextBounds = mountNode.getBoundingClientRect();
       const nextWidth = Math.max(1, nextBounds.width);
       const nextHeight = Math.max(1, nextBounds.height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      renderer.setPixelRatio(performanceMonitor.getPixelRatio());
       renderer.setSize(nextWidth, nextHeight);
     };
 

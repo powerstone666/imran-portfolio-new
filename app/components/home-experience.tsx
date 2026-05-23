@@ -17,11 +17,11 @@ import { useDevicePerformance } from "../lib/use-device-performance";
 gsap.registerPlugin(ScrollTrigger);
 
 /* ── Timing ─────────────────────────────────────────────────── */
-const FRAME_DURATION_MS = 4200; // each cinematic beat
-const FADE_TO_BLACK_MS = 1100; // darkness between frames
-const TYPEWRITER_CHAR_MS = 52; // per-character reveal speed
+const FRAME_DURATION_MS = 6500; // each cinematic beat
+const FADE_TO_BLACK_MS = 1500; // darkness between frames
+const TYPEWRITER_CHAR_MS = 85; // per-character reveal speed
 const RAIN_VOLUME = 0.3; // rain ambience volume
-const HOME_REVEAL_SCROLL_END = "+=60%";
+const HOME_REVEAL_SCROLL_END = "+=90%";
 const HOME_AUDIO_STOP_LINE_RATIO = 0.85;
 const ENTERING_MIN_VISIBILITY_MS = 850;
 
@@ -210,6 +210,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   /* ── Typewriter effect ─────────────────────────────────────── */
   useEffect(() => {
     if (phase !== "cinematic" || !isIntroFrameReady) return;
+    // ── SLOW: Skip typewriter ──
+    if (jitTier === "slow") return;
     setTypedText("");
     const text = currentDialogue;
     let charIndex = 0;
@@ -219,11 +221,19 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       if (charIndex >= text.length) clearInterval(interval);
     }, TYPEWRITER_CHAR_MS);
     return () => clearInterval(interval);
-  }, [frameIndex, phase, currentDialogue, isIntroFrameReady]);
+  }, [frameIndex, phase, currentDialogue, isIntroFrameReady, jitTier]);
 
   /* ── Cinematic sequence driver ─────────────────────────────── */
   useEffect(() => {
     if (phase !== "cinematic" || !isIntroFrameReady) return;
+
+    // ── SLOW: Skip cinematic, show first frame + enter button immediately ──
+    if (jitTier === "slow") {
+      const timer = window.setTimeout(() => {
+        setPhase("awaiting");
+      }, 500);
+      return () => window.clearTimeout(timer);
+    }
 
     const timers: number[] = [];
 
@@ -255,7 +265,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     timers.push(awaitTimer);
 
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [phase, isIntroFrameReady]);
+  }, [phase, isIntroFrameReady, jitTier]);
 
   /* ── Unique transition per frame + Ken Burns ───────────────── */
   useLayoutEffect(() => {
@@ -276,7 +286,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       rotation: 0,
       filter: "contrast(1.1) saturate(0.7) brightness(0.72)",
       duration: dur,
-      ease: "power1.inOut",
+      ease: "sine.inOut",
     };
 
     switch (currentFrame.transition) {
@@ -354,7 +364,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     tl.fromTo(
       el,
       { opacity: 0, y: 12 },
-      { opacity: 1, y: 0, duration: 0.8, ease: "power2.out", delay: 0.45 },
+      { opacity: 1, y: 0, duration: 1.4, ease: "power2.out", delay: 0.8 },
     );
 
     return () => {
@@ -374,7 +384,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     tl.fromTo(
       children,
       { opacity: 0, y: 24 },
-      { opacity: 1, y: 0, duration: 1.2, stagger: 0.34, ease: "power3.out", delay: 0.55 },
+      { opacity: 1, y: 0, duration: 1.6, stagger: 0.5, ease: "power3.out", delay: 0.9 },
     );
 
     return () => {
@@ -399,38 +409,38 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     // 1. Flash white briefly
     tl.to(loader, {
       backgroundColor: "rgb(255,255,255)",
-      duration: 0.18,
+      duration: 0.35,
       ease: "power4.in",
     });
 
     // 2. Back to black + fade out content
     tl.to(loader, {
       backgroundColor: "#000",
-      duration: 0.42,
+      duration: 0.7,
       ease: "power2.out",
-    }, 0.18);
+    }, 0.35);
 
     tl.to(content, {
       opacity: 0,
       scale: 1.05,
-      duration: 0.78,
+      duration: 1.2,
       ease: "power2.in",
-    }, 0.18);
+    }, 0.35);
 
     // 3. Letterbox bars expand to cover full screen
     tl.to([topBar, bottomBar], {
       height: "52vh",
-      duration: 0.95,
+      duration: 1.5,
       ease: "power3.inOut",
-    }, 0.55);
+    }, 0.9);
 
     // 4. Entire loader slides up and fades
     tl.to(loader, {
       y: "-100%",
       opacity: 0,
-      duration: 1.05,
+      duration: 1.8,
       ease: "power3.inOut",
-    }, 1.2);
+    }, 2.0);
 
     return () => { tl.kill(); };
   }, [phase]);
@@ -467,7 +477,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
           trigger: section,
           start: "top top",
           end: HOME_REVEAL_SCROLL_END,
-          scrub: isBlazing ? 0.45 : true,
+          scrub: 1.5,
           toggleActions: "play none none reverse",
         },
       },
@@ -486,14 +496,14 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
         trigger: section,
         start: "top top",
         end: HOME_REVEAL_SCROLL_END,
-        scrub: true,
+        scrub: 1.5,
       },
     });
 
     backgroundTimeline
-      .to(".noir-layer-parallax", { yPercent: -6, scale: 1.02, ease: "none" }, 0)
-      .to(".noir-layer-environment", { yPercent: -4, scale: 1.015, ease: "none" }, 0)
-      .to(".noir-layer-lightning", { yPercent: -2, ease: "none" }, 0);
+      .to(".noir-layer-parallax", { yPercent: -3, scale: 1.01, ease: "none" }, 0)
+      .to(".noir-layer-environment", { yPercent: -2, scale: 1.008, ease: "none" }, 0)
+      .to(".noir-layer-lightning", { yPercent: -1, ease: "none" }, 0);
 
     ScrollTrigger.refresh();
 

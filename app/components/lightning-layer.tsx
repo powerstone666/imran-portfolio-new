@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
+import { performanceMonitor } from "../lib/performance-monitor";
 
 const LIGHTNING_MIN_DELAY_MS = 2200;
 const LIGHTNING_MAX_DELAY_MS = 5600;
@@ -34,7 +35,7 @@ export default function LightningLayer({ isActive = true, jitTier = 'fast' }: Li
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -108,7 +109,7 @@ export default function LightningLayer({ isActive = true, jitTier = 'fast' }: Li
     };
 
     const onResize = () => {
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(performanceMonitor.getPixelRatio());
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
 

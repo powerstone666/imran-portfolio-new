@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const FPS = 20;
+const FPS = 12;
 const FRAME_EXCLUSIONS = new Set([28, 29]);
 
 /** Static background for slow tier */
@@ -77,7 +77,6 @@ type ParallaxSequenceProps = {
 export default function ParallaxSequence({ isActive = true, jitTier = "fast" }: ParallaxSequenceProps) {
   const isSlow = jitTier === "slow";
   const isFast = jitTier === "fast";
-  const isBlazing = jitTier === "blazing";
 
   const framePaths = useMemo(() => {
     if (isFast) return getOptimizedFramePaths();
@@ -88,30 +87,9 @@ export default function ParallaxSequence({ isActive = true, jitTier = "fast" }: 
   const framesRef = useRef<ParallaxFrameResource[]>([]);
   const [areFramesReady, setAreFramesReady] = useState(false);
 
-  // ── SLOW: Static background ──
-  if (isSlow) {
-    return (
-      <div
-        className="noir-layer-parallax"
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          backgroundImage: `url(${STATIC_BG})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          opacity: isActive ? 1 : 0,
-          pointerEvents: "none",
-        }}
-      />
-    );
-  }
-
-  // ── FAST / BLAZING: Animated parallax ──
+  // ── ALL TIERS: Load frames ──
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || isSlow) {
       setAreFramesReady(false);
       return;
     }
@@ -136,10 +114,11 @@ export default function ParallaxSequence({ isActive = true, jitTier = "fast" }: 
     return () => {
       isMounted = false;
     };
-  }, [isActive, isFast]);
+  }, [isActive, isSlow, isFast]);
 
+  // ── FAST / BLAZING: Canvas animation ──
   useEffect(() => {
-    if (!isActive || !areFramesReady) return;
+    if (!isActive || !areFramesReady || isSlow) return;
 
     const canvas = canvasRef.current;
     if (!canvas || framePaths.length === 0 || framesRef.current.length === 0) {
@@ -193,8 +172,30 @@ export default function ParallaxSequence({ isActive = true, jitTier = "fast" }: 
     return () => {
       window.cancelAnimationFrame(frameTimer);
     };
-  }, [areFramesReady, isActive, isFast, framePaths.length]);
+  }, [areFramesReady, isActive, isSlow, isFast, framePaths.length]);
 
+  // ── SLOW: Static background ──
+  if (isSlow) {
+    return (
+      <div
+        className="noir-layer-parallax"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          backgroundImage: `url(${STATIC_BG})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: isActive ? 1 : 0,
+          pointerEvents: "none",
+        }}
+      />
+    );
+  }
+
+  // ── FAST / BLAZING: Canvas animation ──
   if (!isActive) return null;
 
   return (

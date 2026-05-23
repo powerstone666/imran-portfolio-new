@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
+import { performanceMonitor } from "../lib/performance-monitor";
 
 const AURA_MIN_DELAY_MS = 500;
 const AURA_MAX_DELAY_MS = 1200;
@@ -48,7 +49,7 @@ export default function NavbarAura({ isActive = true }: NavbarAuraProps) {
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -161,7 +162,7 @@ export default function NavbarAura({ isActive = true }: NavbarAuraProps) {
     const onResize = () => {
       viewportWidth = window.innerWidth;
       viewportHeight = window.innerHeight;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(performanceMonitor.getPixelRatio());
       renderer.setSize(viewportWidth, viewportHeight);
     };
 

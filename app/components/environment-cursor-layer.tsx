@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
+import { performanceMonitor } from "../lib/performance-monitor";
 
 type EnvironmentCursorLayerProps = {
   isActive?: boolean;
@@ -43,7 +44,7 @@ export default function EnvironmentCursorLayer({ isActive = true, jitTier = 'fas
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+    renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mountNode.appendChild(renderer.domElement);
@@ -106,7 +107,7 @@ export default function EnvironmentCursorLayer({ isActive = true, jitTier = 'fas
     };
 
     const onResize = () => {
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+      renderer.setPixelRatio(performanceMonitor.getPixelRatio());
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
 

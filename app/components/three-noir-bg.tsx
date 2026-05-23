@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createSafeWebGLRenderer } from "../lib/safe-webgl";
+import { performanceMonitor } from "../lib/performance-monitor";
 
 type PerformanceTier = "slow" | "fast" | "blazing";
 
@@ -39,7 +40,7 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
     if (!renderer) {
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isHigh ? 2.0 : 1.0));
+    renderer.setPixelRatio(performanceMonitor.getPixelRatio());
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.width = "100%";
@@ -70,9 +71,9 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
       rainPositions[i * 3 + 1] = Math.random() * (RAIN_WORLD_TOP - RAIN_WORLD_BOTTOM) + RAIN_WORLD_BOTTOM;
       rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 2000;
 
-      // Random downward velocity
+      // Random downward velocity (slower)
       rainVelocities.push({
-        y: -10 - Math.random() * 10,
+        y: -5 - Math.random() * 6,
       });
     }
 
@@ -161,18 +162,18 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
       // Animate Rain
       const positions = rainGeometry.attributes.position.array as Float32Array;
       for (let i = 0; i < rainCount; i++) {
-        // Drop y based on individual velocity
-        positions[i * 3 + 1] += rainVelocities[i].y;
+      // Drop y based on individual velocity (slower rain)
+      positions[i * 3 + 1] += rainVelocities[i].y * 0.5;
 
-        // Slight wind in x direction
-        positions[i * 3] -= 2;
+      // Slight wind in x direction (slower wind)
+      positions[i * 3] -= 0.8;
 
         // Reset if it falls below bottom of screen
         if (positions[i * 3 + 1] < RAIN_WORLD_BOTTOM) {
           positions[i * 3 + 1] = RAIN_WORLD_TOP + Math.random() * 300;
           positions[i * 3] = (Math.random() - 0.5) * 3000;
-          // Randomize velocity on reset to break uniform patterns
-          rainVelocities[i].y = -10 - Math.random() * 10;
+          // Randomize velocity on reset to break uniform patterns (slower)
+          rainVelocities[i].y = -5 - Math.random() * 6;
         }
       }
       rainGeometry.attributes.position.needsUpdate = true;
