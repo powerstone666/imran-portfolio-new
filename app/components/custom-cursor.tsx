@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { GiBat } from "react-icons/gi";
 import { useDevicePerformance } from "../lib/use-device-performance";
@@ -9,36 +9,34 @@ export default function CustomCursor() {
   const { jitTier } = useDevicePerformance();
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const cursorOutlineRef = useRef<HTMLDivElement>(null);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
-    // Detect touch device on mount
-    if (typeof window !== "undefined") {
-      setIsTouchDevice(window.matchMedia("(pointer: coarse)").matches);
-    }
-  }, []);
-
-  useEffect(() => {
+    // Skip on SSR, slow tier, or touch devices
+    if (typeof window === "undefined") return;
     if (jitTier === "slow") return;
-    if (isTouchDevice) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
 
     const cursorDot = cursorDotRef.current;
     const cursorOutline = cursorOutlineRef.current;
     if (!cursorDot || !cursorOutline) return;
 
+    // Inject global cursor hiding
     const styleEl = document.createElement("style");
     styleEl.innerHTML = `* { cursor: none !important; }`;
     document.head.appendChild(styleEl);
 
+    // Initial GSAP setup
     gsap.set(cursorDot, { xPercent: -50, yPercent: -50, autoAlpha: 0, scale: 1 });
     gsap.set(cursorOutline, { xPercent: -50, yPercent: -50, autoAlpha: 0, scale: 1 });
 
+    // Movement with quickTo
     const xDot = gsap.quickTo(cursorDot, "x", { duration: 0.02, ease: "power3" });
     const yDot = gsap.quickTo(cursorDot, "y", { duration: 0.02, ease: "power3" });
     const xOutline = gsap.quickTo(cursorOutline, "x", { duration: 0.15, ease: "power3" });
     const yOutline = gsap.quickTo(cursorOutline, "y", { duration: 0.15, ease: "power3" });
 
     let isVisible = false;
+    let isHovering = false;
 
     const onMouseMove = (e: MouseEvent) => {
       if (!isVisible) {
@@ -60,8 +58,6 @@ export default function CustomCursor() {
       gsap.to([cursorDot, cursorOutline], { autoAlpha: 1, duration: 0.2 });
       isVisible = true;
     };
-
-    let isHovering = false;
 
     const onMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -96,10 +92,10 @@ export default function CustomCursor() {
       document.documentElement.removeEventListener("mouseleave", onMouseLeaveDocument);
       document.documentElement.removeEventListener("mouseenter", onMouseEnterDocument);
     };
-  }, [jitTier, isTouchDevice]);
+  }, [jitTier]);
 
-  // Don't render cursor elements on touch devices
-  if (isTouchDevice) return null;
+  // Don't render on slow tier (avoids unnecessary DOM)
+  if (jitTier === "slow") return null;
 
   return (
     <>
