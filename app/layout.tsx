@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import CustomCursor from "./components/custom-cursor";
+import BackToTop from "./components/back-to-top";
 
 export const metadata: Metadata = {
   title: "Imran Pasha",
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body className="antialiased">
         <CustomCursor />
         {children}
+        <BackToTop />
       </body>
     </html>
   );

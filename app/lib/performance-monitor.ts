@@ -26,7 +26,7 @@ class PerformanceMonitor {
 
   // Raw sample buffer (last N instantaneous FPS readings)
   private fpsHistory: number[] = [];
-  private readonly HISTORY_SIZE = 20; // ~10 seconds of data (500ms each)
+  private readonly HISTORY_SIZE = 6; // ~3 seconds of data (500ms each) — fast reaction to drops
 
   // Frame counting for each 500ms window
   private lastSampleTime = 0;
@@ -47,6 +47,11 @@ class PerformanceMonitor {
   private readonly PIXEL_RATIO_STEP = 0.25;
   private lowFpsCount = 0;
   private readonly LOW_FPS_THRESHOLD = 2; // 2 consecutive samples below 5 FPS
+
+  // ── Emergency bail-out ──
+  // When FPS is extremely low, skip expensive computation
+  private isEmergencyMode = false;
+  private emergencyFrameSkip = 0;
 
   setDeviceTier(tier: PerformanceTier) {
     this.deviceTier = tier;
@@ -80,6 +85,8 @@ class PerformanceMonitor {
     this.tierStabilityCount = 0;
     this.pendingTier = null;
     this.lowFpsCount = 0;
+    this.isEmergencyMode = false;
+    this.emergencyFrameSkip = 0;
 
     document.addEventListener("visibilitychange", this.handleVisibility);
     this.rafId = requestAnimationFrame(this.tick);
@@ -106,6 +113,8 @@ class PerformanceMonitor {
       this.tierStabilityCount = 0;
       this.pendingTier = null;
       this.lowFpsCount = 0;
+      this.isEmergencyMode = false;
+      this.emergencyFrameSkip = 0;
     }
   };
 
@@ -117,13 +126,51 @@ class PerformanceMonitor {
       // Compute instantaneous FPS for this window
       const instantFps = (this.frameCount * 1000) / elapsed;
 
+      // ── Emergency bail-out: if FPS is extremely low, skip expensive work ──
+      if (instantFps < 3) {
+        this.isEmergencyMode = true;
+        this.emergencyFrameSkip++;
+
+        // Force tier to slow immediately
+        if (this.jitTier !== "slow") {
+          this.jitTier = "slow";
+          this.notify();
+        }
+
+        // Reduce pixel ratio immediately
+        if (this.currentPixelRatio > this.MIN_PIXEL_RATIO) {
+          this.currentPixelRatio = this.MIN_PIXEL_RATIO;
+          this.notifyPixelRatio();
+        }
+
+        // Only log occasionally to avoid console spam
+        if (this.emergencyFrameSkip % 4 === 0) {
+          // eslint-disable-next-line no-console
+          console.warn(`[JIT] Emergency mode — FPS: ${instantFps.toFixed(1)}. Reduced to minimum quality.`);
+        }
+
+        // Reset window and bail out of expensive computation
+        this.lastSampleTime = now;
+        this.frameCount = 0;
+        this.rafId = requestAnimationFrame(this.tick);
+        return;
+      }
+
+      // Exit emergency mode if FPS recovers
+      if (this.isEmergencyMode && instantFps >= 8) {
+        this.isEmergencyMode = false;
+        this.emergencyFrameSkip = 0;
+        // eslint-disable-next-line no-console
+        console.log(`[JIT] Recovered from emergency mode — FPS: ${instantFps.toFixed(1)}`);
+      }
+
       // Add to rolling history
       this.fpsHistory.push(instantFps);
       if (this.fpsHistory.length > this.HISTORY_SIZE) {
         this.fpsHistory.shift();
       }
 
-      // Compute smoothed (rolling average)
+      // Compute smoothed (rolling average) — always update, even in emergency
       const avg =
         this.fpsHistory.reduce((sum, val) => sum + val, 0) /
         this.fpsHistory.length;
@@ -168,8 +215,16 @@ class PerformanceMonitor {
       // Determine tier from smoothed value
       const detectedTier = getTierFromFps(this.smoothedFps);
 
-      // Hysteresis: only change tier after N consecutive confirmations
-      if (detectedTier !== this.jitTier) {
+      // ── Fast drop: if instantaneous FPS is very low, drop tier immediately ──
+      if (instantFps < 5 && this.jitTier !== "slow") {
+        this.jitTier = "slow";
+        this.pendingTier = null;
+        this.tierStabilityCount = 0;
+        this.notify();
+        // eslint-disable-next-line no-console
+        console.warn(`[JIT] Instant FPS dropped to ${instantFps.toFixed(1)}. Switching to slow tier immediately.`);
+      } else if (detectedTier !== this.jitTier) {
+        // Hysteresis: only change tier after N consecutive confirmations
         if (this.pendingTier === detectedTier) {
           this.tierStabilityCount++;
           if (this.tierStabilityCount >= this.TIER_CHANGE_THRESHOLD) {
@@ -206,6 +261,10 @@ class PerformanceMonitor {
 
   subscribe(listener: Listener): () => void {
     this.listeners.push(listener);
+    // If already running, immediately notify with current tier
+    if (this.isRunning) {
+      listener(this.jitTier);
+    }
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
     };

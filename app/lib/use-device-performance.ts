@@ -35,8 +35,31 @@ function getTierFromFps(fps: number): PerformanceTier {
   return "blazing";
 }
 
+// ── External measurement promise (set on first call, reused) ──
+let measurementPromise: Promise<PerformanceTier> | null = null;
+
+export async function measureDevicePerformance(): Promise<PerformanceTier> {
+  if (measurementPromise) return measurementPromise;
+
+  measurementPromise = (async () => {
+    // Wait a tick for the page to start rendering
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Measure actual FPS during startup
+    const initialFps = await measureInitialFps();
+    const initialTier = getTierFromFps(initialFps);
+
+    // Start the monitor with the measured tier
+    performanceMonitor.start(initialTier);
+
+    return initialTier;
+  })();
+
+  return measurementPromise;
+}
+
 export function useDevicePerformance() {
-  const [jitTier, setJitTier] = useState<PerformanceTier>("fast");
+  const [jitTier, setJitTier] = useState<PerformanceTier>("slow");
   const [isReady, setIsReady] = useState(false);
   const startedRef = useRef(false);
 
@@ -44,34 +67,15 @@ export function useDevicePerformance() {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    const init = async () => {
-      // Wait a tick for the page to start rendering
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      // Measure actual FPS during startup
-      const initialFps = await measureInitialFps();
-      const initialTier = getTierFromFps(initialFps);
-
-      // Set the initial tier BEFORE starting the monitor
-      setJitTier(initialTier);
+    // Subscribe to tier changes from monitor
+    const unsubscribe = performanceMonitor.subscribe((newTier) => {
+      setJitTier(newTier);
       setIsReady(true);
-
-      // Start the monitor with the measured tier
-      // The monitor will immediately notify all subscribers with the initial tier
-      performanceMonitor.start(initialTier);
-    };
-
-    init();
+    });
 
     return () => {
-      performanceMonitor.stop();
+      unsubscribe();
     };
-  }, []);
-
-  useEffect(() => {
-    return performanceMonitor.subscribe((newTier) => {
-      setJitTier(newTier);
-    });
   }, []);
 
   return {

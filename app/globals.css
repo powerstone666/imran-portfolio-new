@@ -1196,3 +1196,50 @@ body::after {
 }
 
 /* (old loader keyframes removed — cinematic keyframes are above) */
+
+/* ── Smooth scroll ─────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Custom text selection ─────────────────────────────────── */
+::selection {
+  background-color: rgb(180 220 255 / 30%);
+  color: #fff;
+}
+
+::-moz-selection {
+  background-color: rgb(180 220 255 / 30%);
+  color: #fff;
+}
+
+/* ── Custom scrollbar (WebKit) ─────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Firefox scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) rgba(0, 0, 0, 0.3);
+}
+
+/* ── Focus visible styles for accessibility ─────────────────── */
+*:focus-visible {
+  outline: 2px solid rgb(180 220 255 / 50%);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState, useEffect, useCallback } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useDevicePerformance } from "../lib/use-device-performance";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -52,23 +53,112 @@ const PROJECTS = [
   },
 ] as const;
 
+function ProjectCard({ project }: { project: typeof PROJECTS[number]; index?: number }) {
+  return (
+    <article className="project-card w-80 shrink-0 snap-center rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-90 md:p-6 md:snap-start">
+      <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-400/90">Case File</p>
+      <h3 className="mt-2 text-2xl font-black uppercase tracking-[0.06em] text-zinc-100 md:text-3xl">
+        {project.title}
+      </h3>
+      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-300/85">
+        {project.subtitle}
+      </p>
+      <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-200/90">
+        {project.points.map((point) => (
+          <li key={point}>- {point}</li>
+        ))}
+      </ul>
+      <a
+        href={project.link}
+        className="mt-5 inline-flex items-center rounded-md border border-white/25 bg-white/6 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-100 transition hover:border-white/60 hover:bg-white/14"
+      >
+        Open Case File
+      </a>
+    </article>
+  );
+}
+
 export default function ProjectsSection() {
   const { jitTier } = useDevicePerformance();
   const isBlazing = jitTier === "blazing";
   const isFast = jitTier === "fast";
+  const isSlow = jitTier === "slow";
+
   const sectionRef = useRef<HTMLElement>(null);
   const railViewportRef = useRef<HTMLDivElement>(null);
   const railTrackRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<(HTMLElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || isSlow);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [isSlow]);
+
+  // Swipe/drag scroll on mobile/slow
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const scrollLeft = container.scrollLeft;
+    const cardWidth = container.children[0]?.clientWidth || 340;
+    const gap = 16;
+    const newIndex = Math.round(scrollLeft / (cardWidth + gap));
+    setActiveIndex(Math.min(newIndex, PROJECTS.length - 1));
+  }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  const scrollToCard = useCallback((index: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const card = container.children[index] as HTMLElement;
+    if (!card) return;
+
+    container.scrollTo({
+      left: card.offsetLeft - container.offsetLeft,
+      behavior: "smooth",
+    });
+    setActiveIndex(index);
+  }, []);
+
+  const scrollNext = useCallback(() => {
+    const next = Math.min(activeIndex + 1, PROJECTS.length - 1);
+    scrollToCard(next);
+  }, [activeIndex, scrollToCard]);
+
+  const scrollPrev = useCallback(() => {
+    const prev = Math.max(activeIndex - 1, 0);
+    scrollToCard(prev);
+  }, [activeIndex, scrollToCard]);
+
+  // GSAP horizontal scroll for desktop only
   useLayoutEffect(() => {
+    // Skip GSAP on mobile or slow tier — use swipe instead
+    if (isMobile || isSlow) return;
+
     const section = sectionRef.current;
     const viewport = railViewportRef.current;
     const track = railTrackRef.current;
     const title = titleRef.current;
-    const bgContainer = bgRef.current;
+    const bg = bgRef.current;
     if (!section || !viewport || !track) return;
 
     const context = gsap.context(() => {
@@ -93,9 +183,9 @@ export default function ProjectsSection() {
       }
 
       // ── ALL TIERS: Background fade-in ──
-      if (bgContainer) {
+      if (bg) {
         gsap.fromTo(
-          bgContainer,
+          bg,
           { opacity: 0 },
           {
             opacity: 1,
@@ -110,26 +200,10 @@ export default function ProjectsSection() {
         );
       }
 
-      // ── ALL TIERS: Horizontal scroll ──
       const getMaxShift = () => Math.max(0, track.scrollWidth - viewport.clientWidth);
       gsap.set(track, { x: 0 });
 
-      // Slow: light horizontal scroll, no pin
-      if (!isFast && !isBlazing) {
-        gsap.to(track, {
-          x: () => -getMaxShift(),
-          ease: "none",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 60%",
-            end: "bottom 40%",
-            scrub: true,
-          },
-        });
-        return;
-      }
-
-      // Fast: horizontal scroll + pin, no card scale
+      // Fast: horizontal scroll + pin
       if (isFast) {
         gsap.to(track, {
           x: () => -getMaxShift(),
@@ -194,7 +268,9 @@ export default function ProjectsSection() {
 
     ScrollTrigger.refresh();
     return () => context.revert();
-  }, [isBlazing, isFast]);
+  }, [isBlazing, isFast, isMobile, isSlow]);
+
+  const showSwipeUI = isMobile || isSlow;
 
   return (
     <section
@@ -227,54 +303,89 @@ export default function ProjectsSection() {
 
         <div className="mt-10">
           <div className="mb-3 text-center text-[11px] uppercase tracking-[0.22em] text-zinc-400/90">
-            Scroll Sideways Through Cases
+            {showSwipeUI ? "Swipe Through Cases" : "Scroll Sideways Through Cases"}
           </div>
 
-          <div ref={railViewportRef} className="overflow-hidden pb-2">
-            <div
-              ref={railTrackRef}
-              className="flex min-w-max items-start px-1 py-3 pr-4 md:pr-6"
-            >
-              {PROJECTS.map((project, index) => (
-                <div key={project.title} className="flex items-start">
-                  <article
-                    ref={(el) => {
-                      cardsRef.current[index] = el;
-                    }}
-                    className="w-82.5 shrink-0 snap-start rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:w-90 md:p-6"
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-400/90">Case File</p>
-                    <h3 className="mt-2 text-2xl font-black uppercase tracking-[0.06em] text-zinc-100 md:text-3xl">
-                      {project.title}
-                    </h3>
-                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-300/85">
-                      {project.subtitle}
-                    </p>
-                    <ul className="mt-4 space-y-2 text-sm leading-relaxed text-zinc-200/90">
-                      {project.points.map((point) => (
-                        <li key={point}>- {point}</li>
-                      ))}
-                    </ul>
-                    <a
-                      href={project.link}
-                      className="mt-5 inline-flex items-center rounded-md border border-white/25 bg-white/6 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-100 transition hover:border-white/60 hover:bg-white/14"
-                    >
-                      Open Case File
-                    </a>
-                  </article>
-
-                  {index < PROJECTS.length - 1 ? (
-                    <div className="relative mx-2 mt-28 hidden h-8 w-24 shrink-0 md:block">
-                      <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-[repeating-linear-gradient(to_right,rgba(220,220,220,0.35)_0_10px,transparent_10px_16px)]" />
-                      <div className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
-                      <div className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-
+          {/* ── Desktop: GSAP horizontal scroll ── */}
+          {!showSwipeUI && (
+            <div ref={railViewportRef} className="overflow-hidden pb-2">
+              <div
+                ref={railTrackRef}
+                className="flex min-w-max items-start px-1 py-3 pr-4 md:pr-6"
+              >
+                {PROJECTS.map((project, index) => (
+                  <div key={project.title} className="flex items-start">
+                    <ProjectCard project={project} index={index} />
+                    {index < PROJECTS.length - 1 && (
+                      <div className="relative mx-2 mt-28 hidden h-8 w-24 shrink-0 md:block">
+                        <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-[repeating-linear-gradient(to_right,rgba(220,220,220,0.35)_0_10px,transparent_10px_16px)]" />
+                        <div className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
+                        <div className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-red-200/55 bg-red-500/35 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ── Mobile / Slow: Swipe carousel ── */}
+          {showSwipeUI && (
+            <div className="relative">
+              {/* Swipe container */}
+              <div
+                ref={scrollContainerRef}
+                className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none]"
+                style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+              >
+                {PROJECTS.map((project, index) => (
+                  <div
+                    key={project.title}
+                    className="snap-center first:pl-4 last:pr-4"
+                  >
+                    <ProjectCard project={project} index={index} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Navigation arrows */}
+              <button
+                type="button"
+                onClick={scrollPrev}
+                className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/80 backdrop-blur-md transition hover:border-white/40 hover:bg-black/80 hover:text-white md:h-10 md:w-10"
+                aria-label="Previous project"
+                disabled={activeIndex === 0}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={scrollNext}
+                className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/80 backdrop-blur-md transition hover:border-white/40 hover:bg-black/80 hover:text-white md:h-10 md:w-10"
+                aria-label="Next project"
+                disabled={activeIndex === PROJECTS.length - 1}
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Dot indicators */}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {PROJECTS.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => scrollToCard(index)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === activeIndex
+                        ? "w-6 bg-white/80"
+                        : "w-1.5 bg-white/25 hover:bg-white/40"
+                    }`}
+                    aria-label={`Go to project ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

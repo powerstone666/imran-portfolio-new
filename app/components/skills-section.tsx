@@ -193,21 +193,19 @@ export default function SkillsSection() {
   const titleRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    if (jitTier === "slow") return;
     const section = sectionRef.current;
     const tree = treeRef.current;
     const title = titleRef.current;
     if (!section || !tree || !title) return;
 
-    const isSlow = jitTier === 'slow';
     const isBlazing = jitTier === 'blazing';
 
     const ctx = gsap.context(() => {
       // ── Title animation ──
       gsap.fromTo(
         title,
-        isSlow
-          ? { opacity: 0, y: 30 }
-          : isBlazing
+        isBlazing
           ? { opacity: 0, y: 50, filter: "blur(8px)" }
           : { opacity: 0, y: 40, filter: "blur(4px)" },
         {

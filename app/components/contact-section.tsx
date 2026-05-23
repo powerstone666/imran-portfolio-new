@@ -1,21 +1,56 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Loader2, CheckCircle, Send } from "lucide-react";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 gsap.registerPlugin(ScrollTrigger);
+
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
 type ContactSectionProps = {
   isMuted?: boolean;
 };
 
 export default function ContactSection({ isMuted = false }: ContactSectionProps) {
+  const { jitTier } = useDevicePerformance();
   const sectionRef = useRef<HTMLElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setStatus("submitting");
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: formData,
+        headers: { Accept: "application/json" },
+      });
+
+      if (response.ok) {
+        setStatus("success");
+        form.reset();
+        // Reset after 5 seconds
+        setTimeout(() => setStatus("idle"), 5000);
+      } else {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 5000);
+      }
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 5000);
+    }
+  };
 
   // Sync video mute state with global navbar audio control
   useEffect(() => {
@@ -79,6 +114,7 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
 
   // GSAP Entry Animations
   useLayoutEffect(() => {
+    if (jitTier === "slow") return;
     const section = sectionRef.current;
     const bg = bgRef.current;
     const textGroup = textRef.current;
@@ -141,7 +177,7 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
     }, section);
 
     return () => ctx.revert();
-  }, []);
+  }, [jitTier]);
 
   return (
     <section ref={sectionRef} id="contact" className="relative min-h-screen overflow-hidden border-t border-white/10">
@@ -183,73 +219,111 @@ export default function ContactSection({ isMuted = false }: ContactSectionProps)
         </div>
 
         <div ref={formRef} className="rounded-2xl border border-white/16 bg-black/42 p-5 backdrop-blur-md md:p-8">
-          <form
-            className="space-y-4"
-            action="https://formspree.io/f/mgegrqwy"
-            method="post"
-            target="_blank"
-          >
-            <div>
-              <label htmlFor="contact-name" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
-                Name
-              </label>
-              <input
-                id="contact-name"
-                name="name"
-                required
-                className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45"
-                placeholder="Your name"
-              />
+          {status === "success" ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+              <CheckCircle size={48} className="text-emerald-400" strokeWidth={1.5} />
+              <div>
+                <p className="text-lg font-semibold text-white">Message Sent</p>
+                <p className="mt-1 text-sm text-zinc-300/80">I will get back to you soon.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatus("idle")}
+                className="mt-2 rounded-md border border-white/20 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-wider text-zinc-300 transition hover:border-white/40 hover:text-white"
+              >
+                Send Another
+              </button>
             </div>
-
-            <div>
-              <label htmlFor="contact-email" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
-                Email
-              </label>
-              <input
-                id="contact-email"
-                name="email"
-                type="email"
-                required
-                className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="contact-subject" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
-                Subject
-              </label>
-              <input
-                id="contact-subject"
-                name="subject"
-                required
-                className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45"
-                placeholder="Project idea / Role"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="contact-message" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
-                Message
-              </label>
-              <textarea
-                id="contact-message"
-                name="message"
-                required
-                rows={5}
-                className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45"
-                placeholder="Tell me about your project or opportunity"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="inline-flex items-center rounded-md border border-white/26 bg-white/10 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-100 transition hover:border-white/60 hover:bg-white/16"
+          ) : (
+            <form
+              className="space-y-4"
+              action="https://formspree.io/f/mgegrqwy"
+              method="post"
+              onSubmit={handleSubmit}
             >
-              Send Message
-            </button>
-          </form>
+              <div>
+                <label htmlFor="contact-name" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
+                  Name
+                </label>
+                <input
+                  id="contact-name"
+                  name="name"
+                  required
+                  disabled={status === "submitting"}
+                  className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45 disabled:opacity-50"
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="contact-email" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
+                  Email
+                </label>
+                <input
+                  id="contact-email"
+                  name="email"
+                  type="email"
+                  required
+                  disabled={status === "submitting"}
+                  className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45 disabled:opacity-50"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="contact-subject" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
+                  Subject
+                </label>
+                <input
+                  id="contact-subject"
+                  name="subject"
+                  required
+                  disabled={status === "submitting"}
+                  className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45 disabled:opacity-50"
+                  placeholder="Project idea / Role"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="contact-message" className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300/90">
+                  Message
+                </label>
+                <textarea
+                  id="contact-message"
+                  name="message"
+                  required
+                  rows={5}
+                  disabled={status === "submitting"}
+                  className="w-full rounded-lg border border-white/18 bg-black/35 px-3 py-2.5 text-zinc-100 outline-none transition focus:border-white/45 disabled:opacity-50"
+                  placeholder="Tell me about your project or opportunity"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={status === "submitting"}
+                className="inline-flex items-center gap-2 rounded-md border border-white/26 bg-white/10 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-100 transition hover:border-white/60 hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {status === "submitting" ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    Send Message
+                  </>
+                )}
+              </button>
+
+              {status === "error" && (
+                <p className="text-xs text-red-400/90">
+                  Something went wrong. Please try again or reach out directly via email.
+                </p>
+              )}
+            </form>
+          )}
         </div>
       </div>
     </section>

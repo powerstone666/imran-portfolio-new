@@ -5,8 +5,8 @@ import { useDevicePerformance } from "../lib/use-device-performance";
 import { performanceMonitor } from "../lib/performance-monitor";
 
 export default function PerformanceBadge() {
-  const { jitTier, isReady } = useDevicePerformance();
-  const [fps, setFps] = useState<number | null>(null);
+  const { jitTier } = useDevicePerformance();
+  const [fps, setFps] = useState<number>(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -28,11 +28,9 @@ export default function PerformanceBadge() {
     <div
       className={`fixed bottom-3 right-3 z-[9999] flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest backdrop-blur-md md:top-3 md:left-3 md:bottom-auto md:right-auto md:gap-2 md:px-3 md:py-1 md:text-[10px] ${tierColor}`}
     >
-      <span className="tabular-nums">
-        {isReady && fps !== null ? `${fps}` : "..."}
-      </span>
+      <span className="tabular-nums">{fps}</span>
       <span className="opacity-60 hidden sm:inline">|</span>
-      <span>{isReady ? tierLabel : "Measuring..."}</span>
+      <span>{tierLabel}</span>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { gsap } from "gsap";
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
+import { useDevicePerformance } from "../lib/use-device-performance";
 
 const ABOUT_NARRATION_SRC = "/about/myvoice.m4a";
 const ABOUT_NARRATION_VOLUME = 0.35;
@@ -29,6 +30,7 @@ export default function AboutNarrationPanel({
   narrationSegments,
   onImageError,
 }: AboutNarrationPanelProps) {
+  const { jitTier } = useDevicePerformance();
   const [activeNarrationIndex, setActiveNarrationIndex] = useState(0);
   const [narrationCurrentTime, setNarrationCurrentTime] = useState(0);
   const [narrationDuration, setNarrationDuration] = useState(0);
@@ -38,6 +40,8 @@ export default function AboutNarrationPanel({
   const narrationAudioRef = useRef<HTMLAudioElement>(null);
   const bgMusicAudioRef = useRef<HTMLAudioElement>(null);
   const isNarrationInViewRef = useRef(false);
+  const hasInteractedRef = useRef(false);
+  const [needsInteraction, setNeedsInteraction] = useState(false);
 
   useEffect(() => {
     const audio = narrationAudioRef.current;
@@ -78,6 +82,10 @@ export default function AboutNarrationPanel({
     }
 
     let hasEntered = false;
+    // Lower threshold on mobile for better detection
+    const isMobile = window.innerWidth < 768;
+    const threshold = isMobile ? 0.1 : 0.45;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry) {
@@ -89,7 +97,10 @@ export default function AboutNarrationPanel({
           hasEntered = true;
           if (!isMuted) {
             requestAudioFocus(audio);
-            void audio.play().catch(() => {});
+            void audio.play().catch(() => {
+              // Autoplay blocked — show interaction button
+              setNeedsInteraction(true);
+            });
             void bgMusicAudio.play().catch(() => {});
           }
           return;
@@ -102,7 +113,7 @@ export default function AboutNarrationPanel({
         audio.pause();
         bgMusicAudio.pause();
       },
-      { threshold: 0.45 },
+      { threshold },
     );
 
     observer.observe(panel);
@@ -194,6 +205,7 @@ export default function AboutNarrationPanel({
   );
 
   useLayoutEffect(() => {
+    if (jitTier === "slow") return;
     const container = lyricsContainerRef.current;
     if (!container) {
       return;
@@ -210,7 +222,7 @@ export default function AboutNarrationPanel({
         )
         .to(activeLine, { scale: 1, duration: 0.14, ease: "power2.inOut" });
     }
-  }, [activeNarrationIndex]);
+  }, [activeNarrationIndex, jitTier]);
 
   const formatClock = (seconds: number) => {
     const safe = Math.max(0, Math.floor(seconds));
@@ -256,6 +268,26 @@ export default function AboutNarrationPanel({
       </div>
 
       <div className="min-h-105 p-6 md:p-8">
+        {needsInteraction && (
+          <button
+            type="button"
+            onClick={() => {
+              const audio = narrationAudioRef.current;
+              const bgMusicAudio = bgMusicAudioRef.current;
+              if (audio) {
+                requestAudioFocus(audio);
+                void audio.play().catch(() => {});
+              }
+              if (bgMusicAudio) {
+                void bgMusicAudio.play().catch(() => {});
+              }
+              setNeedsInteraction(false);
+            }}
+            className="mb-4 inline-flex items-center rounded-md border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-100 transition hover:border-white/55 hover:bg-white/20"
+          >
+            Tap to Play Narration
+          </button>
+        )}
         <div ref={lyricsContainerRef} className="space-y-5">
           {visibleLyrics.map((segment, offsetIndex) => {
             const absoluteIndex = visibleStartIndex + offsetIndex;

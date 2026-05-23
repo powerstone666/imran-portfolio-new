@@ -134,7 +134,16 @@ export default function Navbar({
                 className={`noir-navbar-link ${activeSection === item.href ? "active" : ""}`}
                 href={item.href}
                 aria-current={activeSection === item.href ? "page" : undefined}
-                onClick={closeMenu}
+                onClick={(e) => {
+                  closeMenu();
+                  if (item.href.startsWith("#") && item.href !== "#") {
+                    e.preventDefault();
+                    const el = document.getElementById(item.href.substring(1));
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  }
+                }}
               >
                 {item.label}
               </a>

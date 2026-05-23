@@ -47,6 +47,12 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
     renderer.domElement.style.height = "100%";
     renderer.domElement.style.display = "block";
 
+    // Subscribe to pixel ratio changes from performance monitor
+    const unsubscribePixelRatio = performanceMonitor.subscribePixelRatio((newRatio) => {
+      renderer.setPixelRatio(newRatio);
+      applyViewportSize();
+    });
+
     // Append to container
     container.appendChild(renderer.domElement);
 
@@ -208,6 +214,7 @@ export default function ThreeNoirBg({ jitTier = "fast" }: ThreeNoirBgProps) {
       window.removeEventListener("resize", onResize);
       resizeObserver.disconnect();
       cancelAnimationFrame(animationFrameId);
+      unsubscribePixelRatio();
 
       if (container && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);

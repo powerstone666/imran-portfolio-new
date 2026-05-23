@@ -12,7 +12,7 @@ import Navbar from "./navbar";
 import ParallaxSequence, { preloadParallaxFrames } from "./parallax-sequence";
 import { requestAudioFocus, subscribeToAudioFocus } from "../lib/audio-focus";
 import { preloadImages } from "../lib/asset-preload";
-import { useDevicePerformance } from "../lib/use-device-performance";
+import { useDevicePerformance, measureDevicePerformance } from "../lib/use-device-performance";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -73,7 +73,7 @@ type HomeExperienceProps = {
 };
 
 export default function HomeExperience({ isMuted = false, onToggleMute, onOpenChange }: HomeExperienceProps) {
-  const { jitTier } = useDevicePerformance();
+  const { jitTier, isReady } = useDevicePerformance();
   const [phase, setPhase] = useState<"cinematic" | "awaiting" | "transitioning" | "open">("cinematic");
   const [frameIndex, setFrameIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
@@ -82,6 +82,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   const [isEntering, setIsEntering] = useState(false);
   const [areSecondaryLayersReady, setAreSecondaryLayersReady] = useState(false);
   const [isIntroFrameReady, setIsIntroFrameReady] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState({ loaded: 1, total: 0 });
 
   const imageRef = useRef<HTMLImageElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
@@ -97,6 +98,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   const shouldPlayHomeAudio = phase === "open" && isHomeLayersActive;
   const shouldRenderHomeLayers = shouldRunMainScene;
   const isLoading = phase !== "open";
+  const shouldSkipIntroAnimation = isReady && jitTier === "slow";
   const currentFrame = useMemo(
     () => (phase === "cinematic" ? STORY_FRAMES[frameIndex] : WAITING_FRAME),
     [phase, frameIndex],
@@ -211,7 +213,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   useEffect(() => {
     if (phase !== "cinematic" || !isIntroFrameReady) return;
     // ── SLOW: Skip typewriter ──
-    if (jitTier === "slow") return;
+    if (shouldSkipIntroAnimation) return;
     setTypedText("");
     const text = currentDialogue;
     let charIndex = 0;
@@ -221,14 +223,14 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
       if (charIndex >= text.length) clearInterval(interval);
     }, TYPEWRITER_CHAR_MS);
     return () => clearInterval(interval);
-  }, [frameIndex, phase, currentDialogue, isIntroFrameReady, jitTier]);
+  }, [frameIndex, phase, currentDialogue, isIntroFrameReady, shouldSkipIntroAnimation]);
 
   /* ── Cinematic sequence driver ─────────────────────────────── */
   useEffect(() => {
     if (phase !== "cinematic" || !isIntroFrameReady) return;
 
     // ── SLOW: Skip cinematic, show first frame + enter button immediately ──
-    if (jitTier === "slow") {
+    if (shouldSkipIntroAnimation) {
       const timer = window.setTimeout(() => {
         setPhase("awaiting");
       }, 500);
@@ -265,10 +267,11 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     timers.push(awaitTimer);
 
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [phase, isIntroFrameReady, jitTier]);
+  }, [phase, isIntroFrameReady, shouldSkipIntroAnimation]);
 
   /* ── Unique transition per frame + Ken Burns ───────────────── */
   useLayoutEffect(() => {
+    if (jitTier === "slow") return;
     const img = imageRef.current;
     if (!img) return;
 
@@ -356,6 +359,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
   /* ── Subtitle entrance ─────────────────────────────────────── */
   useLayoutEffect(() => {
+    if (shouldSkipIntroAnimation) return;
     if (phase !== "cinematic") return;
     const el = subtitleRef.current;
     if (!el) return;
@@ -370,10 +374,11 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     return () => {
       tl.kill();
     };
-  }, [frameIndex, phase]);
+  }, [frameIndex, phase, shouldSkipIntroAnimation]);
 
   /* ── Awaiting reveal animation ─────────────────────────────── */
   useLayoutEffect(() => {
+    if (shouldSkipIntroAnimation) return;
     if (phase !== "awaiting") return;
     const el = containerRef.current;
     if (!el) return;
@@ -390,11 +395,15 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     return () => {
       tl.kill();
     };
-  }, [phase]);
+  }, [phase, shouldSkipIntroAnimation]);
 
   /* ── Transition-out animation ────────────────────────────── */
   useLayoutEffect(() => {
     if (phase !== "transitioning") return;
+    if (jitTier === "slow") {
+      setPhase("open");
+      return;
+    }
     const loader = loaderRef.current;
     if (!loader) { setPhase("open"); return; }
 
@@ -448,22 +457,19 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   /* ── Scroll reveal on home scene ─────────────────────────── */
   useLayoutEffect(() => {
     if (phase !== "open") return;
+    if (jitTier === "slow") return; // Skip GSAP on slow tier
     const section = revealSectionRef.current;
     const pinWrap = revealPinRef.current;
     const content = revealContentRef.current;
     if (!section || !pinWrap || !content) return;
 
-    // ── SLOW: No blur, just fade ──
     // ── FAST: Light blur + scale ──
     // ── BLAZING: Full blur + scale ──
-    const isSlow = jitTier === "slow";
     const isBlazing = jitTier === "blazing";
 
     const revealTween = gsap.fromTo(
       content,
-      isSlow
-        ? { opacity: 0, y: 40 }
-        : isBlazing
+      isBlazing
         ? { opacity: 0, y: 130, scale: 0.96, filter: "blur(8px)" }
         : { opacity: 0, y: 80, scale: 0.98, filter: "blur(4px)" },
       {
@@ -519,6 +525,7 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
   /* ── Home layers/audio only while Home section is visible ── */
   useLayoutEffect(() => {
     if (phase !== "open") return;
+    if (jitTier === "slow") return; // Skip ScrollTrigger on slow tier
     const homeSection = revealSectionRef.current;
     if (!homeSection) return;
 
@@ -557,14 +564,34 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
     }, 400);
   }, []);
 
-  const preloadHomeAssets = useCallback(async () => {
+  const preloadHomeAssets = useCallback(async (onProgress?: (loaded: number, total: number) => void) => {
     if (preloadPromiseRef.current) {
       return preloadPromiseRef.current;
     }
 
-    preloadPromiseRef.current = (async () => {
-      await Promise.all([preloadParallaxFrames(), preloadImages(HOME_PRELOAD_IMAGES)]);
+    const totalAssets = HOME_PRELOAD_IMAGES.length + HOME_PRELOAD_AUDIO.length + 1; // +1 for parallax
+    let loaded = 0;
 
+    const report = () => {
+      loaded++;
+      onProgress?.(loaded, totalAssets);
+    };
+
+    preloadPromiseRef.current = (async () => {
+      // Preload parallax frames (counts as 1 unit)
+      await preloadParallaxFrames();
+      report();
+
+      // Preload home images (each counts as 1)
+      await Promise.all(
+        HOME_PRELOAD_IMAGES.map((src) =>
+          preloadImages([src]).then(() => {
+            report();
+          }),
+        ),
+      );
+
+      // Preload audio (each counts as 1)
       await Promise.allSettled(
         HOME_PRELOAD_AUDIO.map(
           (source) =>
@@ -582,6 +609,8 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
               audio.addEventListener("error", complete, { once: true });
               audio.src = source;
               audio.load();
+            }).then(() => {
+              report();
             }),
         ),
       );
@@ -597,10 +626,16 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
 
     const startTs = performance.now();
     setIsEntering(true);
+    setLoadingProgress({ loaded: 1, total: HOME_PRELOAD_IMAGES.length + HOME_PRELOAD_AUDIO.length + 1 });
     stopRain();
 
     try {
-      await preloadHomeAssets();
+      // Measure device performance FIRST before deciding what to render
+      await measureDevicePerformance();
+
+      await preloadHomeAssets((loaded, total) => {
+        setLoadingProgress({ loaded: loaded + 1, total });
+      });
     } catch {
       // Continue transition even if some assets fail to preload.
     } finally {
@@ -717,6 +752,16 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
                   <span className="cine-enter-glow" />
                   <span className="cine-enter-text">{isEntering ? "Entering..." : "Enter the Story"}</span>
                 </button>
+                {isEntering && loadingProgress.total > 0 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-300/80">
+                      Loading assets {loadingProgress.loaded}/{loadingProgress.total}
+                    </p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-400/60">
+                      Note: It may take time on low end devices
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -728,7 +773,12 @@ export default function HomeExperience({ isMuted = false, onToggleMute, onOpenCh
             className="relative z-35 min-h-[150vh] px-6 md:px-14"
           >
             <div ref={revealPinRef} className="flex min-h-screen w-full items-center justify-center">
-              <div ref={revealContentRef} className="pointer-events-auto max-w-4xl opacity-0 text-center">
+              <div
+                ref={revealContentRef}
+                className={`pointer-events-auto max-w-4xl text-center ${
+                  jitTier === "slow" ? "opacity-100" : "opacity-0"
+                }`}
+              >
                 <h1 className="relative inline-block text-5xl font-black uppercase tracking-[0.14em] md:text-8xl">
                   <span
                     aria-hidden="true"
